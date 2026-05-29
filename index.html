@@ -844,7 +844,7 @@ async function lAll(){
 }
 function setupL(){setInterval(async()=>{try{const[fat,fcs,fbs]=await Promise.all([fbGet('ativos'),fbGet('contracts'),fbGet('bms')]);if(fat&&Object.keys(fat).length>0)ativos=Object.values(fat);if(fcs&&Object.keys(fcs).length>0)cs=Object.values(fcs);if(fbs&&Object.keys(fbs).length>0)bs=Object.values(fbs);lsSave();rAll();}catch(e){}},30000);}
 
-function rAll(){if(_user&&(_user.role==='op'||_user.role==='com')){renderApproverView();return;}rA();rC();rP();rCons();rCP();rK();popCF();}
+function rAll(){if(!_user)return;if(_user.role==='op'||_user.role==='com'){renderApproverView();return;}rA();rC();rP();rCons();rCP();rK();popCF();}
 
 // ═══════════════ NAVIGATION ═══════════════
 function goPage(id,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.getElementById('page-'+id).classList.add('active');btn.classList.add('active');if(id==='indicadores')rI();}
@@ -1982,7 +1982,23 @@ function doLogout(){
 }
 function checkSession(){
   const saved=localStorage.getItem('med_user');
-  if(saved){try{_user=JSON.parse(saved);doLogin();}catch(e){}}
+  if(!saved)return; // no session, stay on login screen
+  try{
+    const u=JSON.parse(saved);
+    if(!u||!u.role)return;
+    _user=u;
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('user-badge').classList.remove('dn');
+    document.getElementById('user-badge-name').textContent=u.nome||u.login||'';
+    if(u.role==='op'||u.role==='com'){
+      document.getElementById('app-layout').style.display='none';
+      document.getElementById('approver-view').classList.remove('dn');
+      renderApproverView();
+    } else {
+      document.getElementById('app-layout').style.display='flex';
+      document.getElementById('approver-view').classList.add('dn');
+    }
+  }catch(e){localStorage.removeItem('med_user');}
 }
 
 // ═══════════════ APPROVER VIEW ═══════════════
@@ -2374,7 +2390,9 @@ document.addEventListener('DOMContentLoaded',async()=>{
   const currM={y:today.getFullYear(),m:today.getMonth()+1};
   await autoCreateBMs(prevM.y,prevM.m);
   await autoCreateBMs(currM.y,currM.m);
-  rAll();
+  // Only render if user is logged in (checkSession already set layout)
+  if(_user&&(_user.role!=='op'&&_user.role!=='com'))rAll();
+  else if(_user)renderApproverView();
   setupL();
 
 });
