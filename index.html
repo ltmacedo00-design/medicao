@@ -505,6 +505,12 @@ tr.gt td{background:#004042;color:#fff;font-weight:600;}
 .login-err{color:var(--red);font-size:11px;margin-top:8px;min-height:16px;}
 .user-badge{display:flex;align-items:center;gap:8px;padding:10px 18px;border-top:1px solid rgba(255,255,255,0.1);margin-top:8px;}
 .user-badge-name{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.8);flex:1;}
+/* ── FILTER COMBO ── */
+.filter-combo{position:relative;display:inline-block;}
+.combo-drop{position:absolute;top:100%;left:0;min-width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow2);z-index:300;margin-top:2px;}
+.combo-opt{padding:7px 12px;font-size:12px;cursor:pointer;color:var(--text2);white-space:nowrap;}
+.combo-opt:hover{background:var(--bg2);color:var(--text);}
+.combo-opt.match{font-weight:600;color:var(--text);}
 </style></head>
 <body>
 <!-- LOGIN SCREEN -->
@@ -572,9 +578,27 @@ tr.gt td{background:#004042;color:#fff;font-weight:600;}
       <div class="topbar">
         <div class="topbar-left">
           <div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Buscar ativo, tag, cliente..." id="sa" oninput="rA()"></div>
-          <select class="sel" id="fsa" onchange="rA()"><option value="">Todos os status</option><option>locado</option><option>manutenção</option><option>reserva dedicada</option><option>reserva sinistro</option><option>desmobilizado</option><option>disponível</option></select>
-          <select class="sel" id="fta" onchange="rA()"><option value="">Todos os tipos</option><option>Equipamento</option><option>Componente</option><option>Implemento</option><option>Serviço</option></select>
-          <select class="sel" id="fca" onchange="rA()"><option value="">Todos os contratos</option></select>
+          <div class="filter-combo">
+            <input class="sel" id="fsa-txt" placeholder="Status..." oninput="filterCombo('fsa-txt','fsa','rA')" onfocus="showCombo('fsa')" style="width:130px;cursor:text" autocomplete="off">
+            <div class="combo-drop dn" id="fsa-drop">
+              ${['','locado','manutenção','reserva','reserva sinistro','sinistro','disponível','venda','desmobilizado'].map(s=>`<div class="combo-opt" onclick="selCombo('fsa-txt','fsa','${s}','rA')">${s||'Todos os status'}</div>`).join('')}
+            </div>
+            <select class="dn" id="fsa" onchange="rA()"><option value="">Todos os status</option><option>locado</option><option>manutenção</option><option>reserva</option><option>reserva sinistro</option><option>sinistro</option><option>disponível</option><option>venda</option><option>desmobilizado</option></select>
+          </div>
+          <div class="filter-combo">
+            <input class="sel" id="fta-txt" placeholder="Tipo..." oninput="filterCombo('fta-txt','fta','rA')" onfocus="showCombo('fta')" style="width:120px;cursor:text" autocomplete="off">
+            <div class="combo-drop dn" id="fta-drop">
+              ${['','Equipamento','Componente','Implemento','Serviço'].map(s=>`<div class="combo-opt" onclick="selCombo('fta-txt','fta','${s}','rA')">${s||'Todos os tipos'}</div>`).join('')}
+            </div>
+            <select class="dn" id="fta" onchange="rA()"><option value="">Todos os tipos</option><option>Equipamento</option><option>Componente</option><option>Implemento</option><option>Serviço</option></select>
+          </div>
+          <div class="filter-combo">
+            <input class="sel" id="fca-txt" placeholder="Contrato..." oninput="filterComboContratos()" onfocus="showCombo('fca')" style="width:180px;cursor:text" autocomplete="off">
+            <div class="combo-drop dn" id="fca-drop" style="max-height:220px;overflow-y:auto">
+              <div class="combo-opt" onclick="selCombo('fca-txt','fca','','rA')">Todos os contratos</div>
+            </div>
+            <select class="dn" id="fca" onchange="rA()"><option value="">Todos os contratos</option></select>
+          </div>
         </div>
         <div style="display:flex;gap:6px">
           <input type="file" id="imp" accept=".xlsx,.csv" class="dn" onchange="impFile(this)">
@@ -603,11 +627,17 @@ tr.gt td{background:#004042;color:#fff;font-weight:600;}
     <div id="page-previsto" class="page">
       <div class="tb"><button class="tbb act" onclick="stab('prev','pv',this)">Previsto</button><button class="tbb" onclick="stab('prev','pc',this)">Consolidado</button></div>
       <div id="sp-prev-pv" class="sp2 act">
-        <div class="topbar"><div class="topbar-left"><div class="mn"><button onclick="chM('prev',-1)"><i class="ti ti-chevron-left"></i></button><div class="mnl" id="pml"></div><button onclick="chM('prev',1)"><i class="ti ti-chevron-right"></i></button></div></div></div>
+        <div class="topbar"><div class="topbar-left">
+          <div class="mn"><button onclick="chM('prev',-1)"><i class="ti ti-chevron-left"></i></button><div class="mnl" id="pml"></div><button onclick="chM('prev',1)"><i class="ti ti-chevron-right"></i></button></div>
+          <div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Filtrar contrato, cliente..." id="spv" oninput="rP()" style="width:220px"></div>
+        </div></div>
         <div id="scp" class="sc-row sc-5"></div><div id="bls"></div><div id="pvl"></div>
       </div>
       <div id="sp-prev-pc" class="sp2">
-        <div class="topbar"><div class="topbar-left"><select class="sel" id="cms" onchange="rCons()"></select></div></div>
+        <div class="topbar"><div class="topbar-left">
+          <select class="sel" id="cms" onchange="rCons()"></select>
+          <div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Filtrar contrato, cliente..." id="scons" oninput="rCons()" style="width:220px"></div>
+        </div></div>
         <div id="scc" class="sc-row sc-5"></div>
         <div class="tw mh"><table><thead><tr><th>Contrato</th><th>Nº contrato</th><th>Cliente</th><th>SAP</th><th>Ativo</th><th>Equipamento</th><th>Tipo</th><th>Prev. mens.</th><th>Mens. fechada</th><th>Hrs exc.</th><th>Valor exc.</th><th class="sc2">Desc. com.</th><th>Desc. op.</th><th class="sc2">Total BM</th><th>Aderência</th><th class="sc2">Nº NF Mens.</th><th>Data NF Mens.</th><th class="sc2">Nº NF Exc.</th><th>Data NF Exc.</th><th class="sc2">Status BM</th></tr></thead><tbody id="tbc"></tbody></table></div>
       </div>
@@ -665,9 +695,19 @@ tr.gt td{background:#004042;color:#fff;font-weight:600;}
           </div>
           <div class="sl">Exportar backup</div>
           <div class="ht"><i class="ti ti-info-circle"></i> Exporte todos os dados do sistema em JSON para backup ou migração.</div>
-          <div style="display:flex;gap:10px">
+          <div style="display:flex;gap:10px;margin-bottom:24px">
             <button class="btn" onclick="dlJSON()"><i class="ti ti-database-export"></i> Exportar JSON</button>
             <button class="btn" onclick="dlHTML()"><i class="ti ti-file-download"></i> Baixar HTML</button>
+          </div>
+          <div class="sl" style="color:var(--red)">Operações críticas</div>
+          <div class="ht" style="border-left-color:var(--red)"><i class="ti ti-alert-triangle"></i> Atenção: as operações abaixo são irreversíveis. Faça um backup antes de executar.</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn" style="border-color:var(--red);color:var(--red)" onclick="zerarERecriarBMs()">
+              <i class="ti ti-refresh"></i> Zerar BMs e recriar para Junho
+            </button>
+            <button class="btn" style="border-color:var(--amber-text);color:var(--amber-text)" onclick="migrarStatus()">
+              <i class="ti ti-database"></i> Normalizar status dos ativos
+            </button>
           </div>
         </div>
       </div>
@@ -1167,7 +1207,9 @@ function rP(){
     });
     if(items.length)grupos.push({c,items});
   });
-  const tP=grupos.reduce((s,g)=>s+g.items.reduce((ss,i)=>ss+i.valor,0),0);
+  const qPf=(document.getElementById('spv')?.value||'').toLowerCase();
+  const gruposFilt=qPf?grupos.filter(g=>g.c.nomeContrato.toLowerCase().includes(qPf)||g.c.nomeCliente.toLowerCase().includes(qPf)||(g.c.codCliente||'').toLowerCase().includes(qPf)):grupos;
+  const tP=gruposFilt.reduce((s,g)=>s+g.items.reduce((ss,i)=>ss+i.valor,0),0);
   const tB=bl.reduce((s,b)=>s+(b.valorFaturado||cBMV(b)),0);
   const tF=fatBMs.reduce((s,b)=>s+(b.valorFaturado||cBMV(b)),0);
   const sc=document.getElementById('scp');
@@ -1176,7 +1218,7 @@ function rP(){
   if(bls)bls.innerHTML=!bl.length?'':
     `<div class="sl" style="color:var(--red)"><i class="ti ti-alert-triangle" style="vertical-align:-1px;margin-right:5px"></i>Backlog <span class="badge br">${bl.length}</span></div>${bl.map(b=>{const c=cs.find(x=>x.id===b.contractId);const[by,bm2]=b.competencia.split('-').map(Number);return'<div class="blb"><div class="blh"><div><div style="font-family:\'Barlow Condensed\',sans-serif;font-size:14px;font-weight:700;color:var(--red)">'+(c?.nomeContrato||'-')+'</div><div style="font-size:11px;color:rgba(224,82,82,0.7);margin-top:1px">'+(c?.nomeCliente)+' · '+yml(by,bm2)+'</div></div><div style="display:flex;align-items:center;gap:8px"><span class="badge br">'+b.status+'</span><span style="font-family:\'Barlow Condensed\',sans-serif;font-size:15px;font-weight:700;color:var(--red)">'+f(cBMV(b))+'</span></div></div></div>';}).join('')}<div style="height:14px"></div>`;
   const pvl=document.getElementById('pvl');
-  if(pvl)pvl.innerHTML=`<div class="sl">Previsto ${yml(y,m)}</div>${!grupos.length?'<div style="text-align:center;padding:24px;color:var(--text3)">Nenhum ativo previsto para este mês</div>':grupos.map(g=>{const{c,items}=g;const total=items.reduce((s,i)=>s+i.valor,0);return'<div class="cb3" style="margin-bottom:10px"><div class="cbh"><div><div class="cbn">'+c.nomeContrato+'</div><div class="cbm">'+c.nomeCliente+'</div></div><div style="font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:800;color:#F37021">'+f(total)+'</div></div><table class="it"><thead><tr><th>Ativo</th><th>Equipamento</th><th>Tipo</th><th>M+1</th><th>FR</th><th>Prop.</th><th>Base mensal</th><th>Valor previsto</th></tr></thead><tbody>'+items.map(e=>'<tr><td style="font-weight:700;color:var(--text)">'+e.ativo+'</td><td>'+e.equipamento+'</td><td><span class="badge bgr">'+e.tipo+'</span></td><td>'+(e.isM1?'<span class="badge ba">M+1</span>':'−')+'</td><td>'+(e.isFR?'<span class="badge bg">Sim</span>':'−')+'</td><td style="color:var(--text3)">'+Math.round(e.prop*100)+'%</td><td>'+f(e.bv)+'</td><td><div style="display:flex;align-items:center;gap:6px">'+(e.editedManual?'<div class="ved" title="Editado"></div>':'')+'<input class="vi '+(e.editedManual?'ed':'')+'" type="number" value="'+Math.round(e.valor)+'" onchange="epv(\''+e.ek+'\',this.value)"></div></td></tr>').join('')+'</tbody></table></div>';}).join('')}`;
+  if(pvl)pvl.innerHTML=`<div class="sl">Previsto ${yml(y,m)}</div>${!grupos.length?'<div style="text-align:center;padding:24px;color:var(--text3)">Nenhum ativo previsto para este mês</div>':gruposFilt.map(g=>{const{c,items}=g;const total=items.reduce((s,i)=>s+i.valor,0);return'<div class="cb3" style="margin-bottom:10px"><div class="cbh"><div><div class="cbn">'+c.nomeContrato+'</div><div class="cbm">'+c.nomeCliente+'</div></div><div style="font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:800;color:#F37021">'+f(total)+'</div></div><table class="it"><thead><tr><th>Ativo</th><th>Equipamento</th><th>Tipo</th><th>M+1</th><th>FR</th><th>Prop.</th><th>Base mensal</th><th>Valor previsto</th></tr></thead><tbody>'+items.map(e=>'<tr><td style="font-weight:700;color:var(--text)">'+e.ativo+'</td><td>'+e.equipamento+'</td><td><span class="badge bgr">'+e.tipo+'</span></td><td>'+(e.isM1?'<span class="badge ba">M+1</span>':'−')+'</td><td>'+(e.isFR?'<span class="badge bg">Sim</span>':'−')+'</td><td style="color:var(--text3)">'+Math.round(e.prop*100)+'%</td><td>'+f(e.bv)+'</td><td><div style="display:flex;align-items:center;gap:6px">'+(e.editedManual?'<div class="ved" title="Editado"></div>':'')+'<input class="vi '+(e.editedManual?'ed':'')+'" type="number" value="'+Math.round(e.valor)+'" onchange="epv(\''+e.ek+'\',this.value)"></div></td></tr>').join('')+'</tbody></table></div>';}).join('')}`;
 }
 async function epv(key,val){me[key]=parseFloat(val)||0;await sE();rP();}
 
@@ -1215,9 +1257,10 @@ function rCRws(tb,rows){
 }
 function rCons(){
   const sel=document.getElementById('cms');if(!sel)return;
+  const qC=(document.getElementById('scons')?.value||'').toLowerCase();
   const{y,m}=mo.prev;const opts=[];for(let i=2;i>=0;i--){const r=aM(y,m,-i);opts.push(r);}
   sel.innerHTML=opts.map(({y:oy,m:om})=>`<option value="${ym(oy,om)}">${yml(oy,om)}</option>`).join('');
-  const sYM=sel.value||ym(y,m);const rows=bCR(sYM);
+  const sYM=sel.value||ym(y,m);let rows=bCR(sYM);if(qC)rows=rows.filter(r=>[r.contrato,r.cliente,r.codCliente].some(v=>v?.toLowerCase().includes(qC)));
   let t={p:0,m:0,dC:0,dO:0,fat:0};rows.forEach(r=>{t.p+=r.prevMens||0;t.m+=r.mensFechada||0;t.dC+=r.dC||0;t.dO+=r.dO||0;if(r.isFat)t.fat+=r.tot||0;});
   const a=t.p>0&&t.fat>0?Math.round(t.fat/t.p*100):null;
   const sc=document.getElementById('scc');
@@ -2182,6 +2225,143 @@ async function migrarStatus(){
   }
   lsSave();rAll();
   alert(`Migração concluída: ${count} ativo(s) com status normalizado.`);
+}
+
+// ── ZERAR BMs e recriar para Junho ──
+async function zerarERecriarBMs(){
+  const msg=`Isso irá:
+
+1. EXCLUIR todos os BMs existentes
+2. Criar BMs em "Ag. Fechamento" para:
+   • Equipamentos M+1 → Competência MAIO/2026 (faturado em junho)
+   • Equipamentos normais → Competência JUNHO/2026
+
+Data de mobilização base: 01/04/2026
+
+Confirmar?`;
+  if(!confirm(msg))return;
+
+  const si=document.getElementById('si');
+  si.textContent='Zerando BMs...';si.classList.add('show');
+
+  // 1. Delete all existing BMs from Firebase
+  for(const b of bs){
+    try{await fetch(`${DB}/bms/${b.id}.json`,{method:'DELETE'});}catch(e){}
+  }
+  bs=[];
+  localStorage.removeItem('med_bs');
+
+  // 2. Group ativos by contract, create one BM per contract per competência
+  // M+1 contracts: competência 2026-05 (maio) — they appear in June previsto
+  // Normal contracts: competência 2026-06 (junho)
+  const created=[];
+
+  // Group active ativos by contractId
+  const byContract={};
+  ativos.filter(a=>a.contractId&&a.status!=='disponível'&&a.status!=='venda').forEach(a=>{
+    if(!byContract[a.contractId])byContract[a.contractId]={m1:[],normal:[]};
+    const c=cs.find(x=>x.id===a.contractId);
+    if(!c)return;
+    if(isM1(c,a))byContract[a.contractId].m1.push(a.id);
+    else byContract[a.contractId].normal.push(a.id);
+  });
+
+  for(const [cid,grupos] of Object.entries(byContract)){
+    // M+1 group → competência maio
+    if(grupos.m1.length){
+      const nb={
+        id:uid(),contractId:cid,competencia:'2026-05',
+        status:'Ag. Fechamento',equipIds:grupos.m1,
+        medicao:{},historico:[{ts:new Date().toISOString(),usuario:'Sistema',tipo:'criação',de:'',para:'Ag. Fechamento',obs:'BM criado via reset de junho'}],
+        dataEntrada:new Date().toISOString()
+      };
+      bs.push(nb);await sB(nb);created.push(nb);
+    }
+    // Normal group → competência junho
+    if(grupos.normal.length){
+      const nb={
+        id:uid(),contractId:cid,competencia:'2026-06',
+        status:'Ag. Fechamento',equipIds:grupos.normal,
+        medicao:{},historico:[{ts:new Date().toISOString(),usuario:'Sistema',tipo:'criação',de:'',para:'Ag. Fechamento',obs:'BM criado via reset de junho'}],
+        dataEntrada:new Date().toISOString()
+      };
+      bs.push(nb);await sB(nb);created.push(nb);
+    }
+  }
+
+  lsSave();
+  // Navigate kanban to junho for normal / maio for M+1
+  mo.kanban={y:2026,m:6};
+  mo.prev={y:2026,m:6};
+  rAll();
+
+  si.textContent='Salvando...';
+  setTimeout(()=>si.classList.remove('show'),1500);
+  alert(`Concluído!
+
+${created.length} BM(s) criado(s):
+• Competência MAIO/2026: M+1
+• Competência JUNHO/2026: normais
+
+Todos em "Ag. Fechamento".`);
+}
+
+// ═══════════════ FILTER COMBO ═══════════════
+function showCombo(id){
+  const drop=document.getElementById(id+'-drop');if(!drop)return;
+  drop.classList.remove('dn');
+  // Close others
+  document.querySelectorAll('.combo-drop').forEach(d=>{if(d.id!==id+'-drop')d.classList.add('dn');});
+}
+function filterCombo(txtId,selId,renderFn){
+  const q=(document.getElementById(txtId)?.value||'').toLowerCase();
+  const drop=document.getElementById(selId+'-drop');const sel=document.getElementById(selId);
+  if(drop){
+    drop.classList.remove('dn');
+    drop.querySelectorAll('.combo-opt').forEach(opt=>{
+      const match=!q||opt.textContent.toLowerCase().includes(q);
+      opt.style.display=match?'':'none';
+      opt.classList.toggle('match',!!q&&match);
+    });
+  }
+  // Sync hidden select value if exact match
+  if(sel){const opts=[...sel.options];const exact=opts.find(o=>o.text.toLowerCase()===q);if(exact)sel.value=exact.value;else if(!q)sel.value='';}
+  if(renderFn&&window[renderFn])window[renderFn]();
+}
+function selCombo(txtId,selId,val,renderFn){
+  const txt=document.getElementById(txtId);const sel=document.getElementById(selId);
+  if(txt)txt.value=val?val:'';
+  if(sel)sel.value=val;
+  const drop=document.getElementById(selId+'-drop');if(drop)drop.classList.add('dn');
+  if(renderFn&&window[renderFn])window[renderFn]();
+}
+function filterComboContratos(){
+  const q=(document.getElementById('fca-txt')?.value||'').toLowerCase();
+  const sel=document.getElementById('fca');const drop=document.getElementById('fca-drop');
+  if(drop){
+    drop.classList.remove('dn');
+    drop.querySelectorAll('.combo-opt').forEach(opt=>{
+      const match=!q||opt.textContent.toLowerCase().includes(q);
+      opt.style.display=match?'':'none';
+    });
+  }
+  if(sel){const opts=[...sel.options];const exact=opts.find(o=>o.text.toLowerCase()===q);if(exact)sel.value=exact.value;else if(!q)sel.value='';}
+  rA();
+}
+// Close combos when clicking outside
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.filter-combo'))
+    document.querySelectorAll('.combo-drop').forEach(d=>d.classList.add('dn'));
+});
+// Populate contract combo when contracts load
+function popCF(){
+  const s=document.getElementById('fca');if(!s)return;
+  const cur=s.value;
+  s.innerHTML='<option value="">Todos os contratos</option>'+cs.map(c=>`<option value="${c.id}" ${cur===c.id?'selected':''}>${c.nomeContrato}</option>`).join('');
+  // Also update combo dropdown
+  const drop=document.getElementById('fca-drop');if(!drop)return;
+  drop.innerHTML='<div class="combo-opt" onclick="selCombo('fca-txt','fca','','rA')">Todos os contratos</div>'+
+    cs.map(c=>`<div class="combo-opt" onclick="selCombo('fca-txt','fca','${c.id}','rA')">${c.nomeContrato} — ${c.nomeCliente}</div>`).join('');
 }
 
 // ═══════════════ INIT ═══════════════
