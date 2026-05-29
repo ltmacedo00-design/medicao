@@ -1299,16 +1299,35 @@ function rKC(b,cur){
 
 // ═══════════════ STAGE CHANGE ═══════════════
 const SAPROV_CLI='Aguardando Aprovação Cliente';
+// ── HISTÓRICO ──
+function addHist(b,tipo,de,para,obs){
+  if(!b.historico)b.historico=[];
+  b.historico.push({
+    ts:new Date().toISOString(),
+    usuario:_user?.nome||'Sistema',
+    tipo,de:de||'',para:para||'',obs:obs||''
+  });
+}
+
 function hSC(bmId,ns,skipPin){
   const b=bs.find(x=>x.id===bmId);const os=b.status;
   const oi=STAGES.indexOf(os);const ni=STAGES.indexOf(ns);
 
-  // PIN required to LEAVE approval stages (admin only — approvers use their own view)
+  // PIN required to LEAVE approval stages
   if((os===SDESC_OP||os===SDESC_COM)&&ns!==SCAN){
-    openPin(()=>{b.status=ns;sB(b);rK();});return;
+    openPin(()=>{
+      addHist(b,'movimentação',os,ns,'Aprovado via PIN');
+      b.status=ns;sB(b);rK();
+    });return;
   }
   // Moving to Faturado → NF modal
-  if(ns===SFAT){openFaturadoModal(bmId,()=>{b.status=ns;sB(b);rK();});return;}
+  if(ns===SFAT){
+    openFaturadoModal(bmId,()=>{
+      addHist(b,'faturamento',os,ns,'Enviado para faturamento');
+      b.status=ns;sB(b);rK();
+    });return;
+  }
+  addHist(b,'movimentação',os,ns);
   b.status=ns;sB(b);rK();
 }
 
@@ -1373,6 +1392,7 @@ async function confFat(bmId){
   b.nfExcNum=document.getElementById('fm-en')?.value||'';
   b.nfExcData=document.getElementById('fm-ed')?.value||'';
   b.valorFaturado=cBMV(b);
+  addHist(b,'NF registrada','','',`NF mens: ${b.nfMensNum||'−'} | Data: ${b.nfMensData||'−'}${b.nfExcNum?' | NF exc: '+b.nfExcNum:''}`);
   closeFM();if(window._fmc)window._fmc();
 }
 // ═══════════════ BM MODAL ═══════════════
@@ -1495,7 +1515,51 @@ function uBR(bmId){
   const el=document.getElementById('bmr-'+bmId);if(!el)return;
   el.innerHTML=`<div class="rbt"><i class="ti ti-calculator" style="margin-right:5px;vertical-align:-1px"></i>Resumo do BM</div><div class="rbr"><span>Total mensalidades</span><span>${f(tM)}</span></div>${tE>0?'<div class="rbr"><span>Total excedentes</span><span>'+f(tE)+'</span></div>':''}${dC>0?'<div class="rbr"><span>Desc. comercial</span><span style="color:#F37021">− '+f(dC)+'</span></div>':''}${dO>0?'<div class="rbr"><span>Desc. operacional</span><span style="color:#F37021">− '+f(dO)+'</span></div>':''}<div class="rbtot"><span>Total BM</span><span>${f(tot)}</span></div>`;
 }
-async function sBMC(bmId){const b=bs.find(x=>x.id===bmId);await sB(b);closeBM();}
+async function sBMC(bmId){
+  const b=bs.find(x=>x.id===bmId);
+  addHist(b,'edição','','','BM salvo manualmente');
+  await sB(b);closeBM();
+}
+
+// ── HISTÓRICO RENDER + TAB ──
+function rBMHist(b){
+  const hist=b.historico||[];
+  if(!hist.length)return'<div style="text-align:center;padding:32px;color:var(--text3)"><i class="ti ti-history" style="font-size:32px;display:block;margin-bottom:8px"></i>Nenhum registro ainda</div>';
+  const TIPO_ICON={movimentação:'ti-arrows-right-left',edição:'ti-pencil','NF registrada':'ti-receipt',aprovação:'ti-check',reprovação:'ti-x'};
+  const TIPO_COLOR={movimentação:'var(--blue-text)',edição:'var(--text2)','NF registrada':'var(--green-text)',aprovação:'var(--green-text)',reprovação:'var(--red-text)'};
+  return`<div style="display:flex;flex-direction:column;gap:0">`+
+    [...hist].reverse().map((h,i)=>{
+      const dt=new Date(h.ts);
+      const dtStr=dt.toLocaleDateString('pt-BR')+' '+dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      const icon=TIPO_ICON[h.tipo]||'ti-clock';const cor=TIPO_COLOR[h.tipo]||'var(--text2)';
+      return`<div style="display:flex;gap:12px;padding:12px 0;${i>0?'border-top:1px solid var(--border)':''}">
+        <div style="flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center">
+          <i class="ti ${icon}" style="font-size:14px;color:${cor}"></i>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;text-transform:uppercase;color:${cor}">${h.tipo}</span>
+            <span style="font-size:10px;color:var(--text3)">${dtStr}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">
+            <strong style="color:var(--text)">${h.usuario}</strong>
+            ${h.de&&h.para?` · <span style="color:var(--text3)">${h.de}</span> → <span style="color:var(--text)">${h.para}</span>`:''}
+          </div>
+          ${h.obs?`<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic">${h.obs}</div>`:''}
+        </div>
+      </div>`;
+    }).join('')+'</div>';
+}
+function bmTab(tab,bmId){
+  document.getElementById('bm-tab-med-'+bmId).classList.toggle('act',tab==='med');
+  document.getElementById('bm-tab-hist-'+bmId).classList.toggle('act',tab==='hist');
+  document.getElementById('bm-pane-med-'+bmId).style.display=tab==='med'?'':'none';
+  document.getElementById('bm-pane-hist-'+bmId).style.display=tab==='hist'?'':'none';
+  // Update count badge
+  const b=bs.find(x=>x.id===bmId);
+  const badge=document.querySelector('#bm-tab-hist-'+bmId+' .badge');
+  if(badge&&b)badge.textContent=(b.historico||[]).length;
+}
 
 // ── AUTO-SAVE BM (debounced) ──
 let _asBMTimer={};
@@ -1969,7 +2033,10 @@ async function confirmarAprovacao(bmId,action){
   const justif=document.getElementById('justif-'+bmId)?.value.trim();
   if(!justif){alert('A justificativa é obrigatória.');return;}
   const b=bs.find(x=>x.id===bmId);
-  b.status=action==='approve'?'Desconto Aprovado':'Desconto Não Aprovado';
+  const novoStatus=action==='approve'?'Desconto Aprovado':'Desconto Não Aprovado';
+  const tipo=_user.role==='op'?'desc. operacional':'desc. comercial';
+  addHist(b,action==='approve'?'aprovação':'reprovação',b.status,novoStatus,`${tipo.toUpperCase()} — ${justif}`);
+  b.status=novoStatus;
   b.discAnaliseAcao=action;b.discAnaliseJustif=justif;b.discAnalisePor=_user.nome;
   await sB(b);renderApproverView();
 }
