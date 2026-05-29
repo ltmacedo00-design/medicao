@@ -580,23 +580,17 @@ tr.gt td{background:#004042;color:#fff;font-weight:600;}
           <div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Buscar ativo, tag, cliente..." id="sa" oninput="rA()"></div>
           <div class="filter-combo">
             <input class="sel" id="fsa-txt" placeholder="Status..." oninput="filterCombo('fsa-txt','fsa','rA')" onfocus="showCombo('fsa')" style="width:130px;cursor:text" autocomplete="off">
-            <div class="combo-drop dn" id="fsa-drop">
-              ${['','locado','manutenção','reserva','reserva sinistro','sinistro','disponível','venda','desmobilizado'].map(s=>`<div class="combo-opt" onclick="selCombo('fsa-txt','fsa','${s}','rA')">${s||'Todos os status'}</div>`).join('')}
-            </div>
+            <div class="combo-drop dn" id="fsa-drop"></div>
             <select class="dn" id="fsa" onchange="rA()"><option value="">Todos os status</option><option>locado</option><option>manutenção</option><option>reserva</option><option>reserva sinistro</option><option>sinistro</option><option>disponível</option><option>venda</option><option>desmobilizado</option></select>
           </div>
           <div class="filter-combo">
             <input class="sel" id="fta-txt" placeholder="Tipo..." oninput="filterCombo('fta-txt','fta','rA')" onfocus="showCombo('fta')" style="width:120px;cursor:text" autocomplete="off">
-            <div class="combo-drop dn" id="fta-drop">
-              ${['','Equipamento','Componente','Implemento','Serviço'].map(s=>`<div class="combo-opt" onclick="selCombo('fta-txt','fta','${s}','rA')">${s||'Todos os tipos'}</div>`).join('')}
-            </div>
+            <div class="combo-drop dn" id="fta-drop"></div>
             <select class="dn" id="fta" onchange="rA()"><option value="">Todos os tipos</option><option>Equipamento</option><option>Componente</option><option>Implemento</option><option>Serviço</option></select>
           </div>
           <div class="filter-combo">
             <input class="sel" id="fca-txt" placeholder="Contrato..." oninput="filterComboContratos()" onfocus="showCombo('fca')" style="width:180px;cursor:text" autocomplete="off">
-            <div class="combo-drop dn" id="fca-drop" style="max-height:220px;overflow-y:auto">
-              <div class="combo-opt" onclick="selCombo('fca-txt','fca','','rA')">Todos os contratos</div>
-            </div>
+            <div class="combo-drop dn" id="fca-drop" style="max-height:220px;overflow-y:auto"></div>
             <select class="dn" id="fca" onchange="rA()"><option value="">Todos os contratos</option></select>
           </div>
         </div>
@@ -837,7 +831,11 @@ async function lAll(){
     if(fcs&&Object.keys(fcs).length>0)cs=Object.values(fcs);
     if(fbs&&Object.keys(fbs).length>0)bs=Object.values(fbs);
     if(fme)me=fme;
-    if(fus&&Object.keys(fus).length>0)USERS=fus;
+    if(fus&&typeof fus==='object'&&Object.keys(fus).length>0){
+      // Validate structure before overwriting
+      const valid=Object.values(fus).every(u=>u&&u.senha&&u.role);
+      if(valid)USERS=fus;
+    }
     if(fft&&Array.isArray(fft))faturistas=fft;
     lsSave();rAll();
   }catch(e){console.warn('Firebase sync failed',e);}
@@ -1953,8 +1951,9 @@ function doLogin(){
   const user=document.getElementById('l-user')?.value.trim().toLowerCase();
   const pass=document.getElementById('l-pass')?.value;
   const u=USERS[user];
+  console.log('login attempt:',user,'users available:',Object.keys(USERS),'match:',!!u,'senha ok:',u&&u.senha===pass);
   if(!u||u.senha!==pass){
-    document.getElementById('l-err').textContent='Usuário ou senha incorretos.';
+    document.getElementById('l-err').textContent='Usuário ou senha incorretos. ('+user+')';
     document.getElementById('l-pass').value='';return;
   }
   _user={...u,login:user};
@@ -1981,16 +1980,20 @@ function doLogout(){
   document.getElementById('approver-view').classList.add('dn');
 }
 function checkSession(){
+  // Clear any corrupted session
   const saved=localStorage.getItem('med_user');
-  if(!saved)return; // no session, stay on login screen
+  if(!saved)return;
   try{
     const u=JSON.parse(saved);
-    if(!u||!u.role)return;
-    _user=u;
+    if(!u||!u.role||!u.login)return;
+    // Re-validate against current USERS list
+    const fresh=USERS[u.login];
+    if(!fresh){localStorage.removeItem('med_user');return;}
+    _user={...fresh,login:u.login};
     document.getElementById('login-screen').style.display='none';
     document.getElementById('user-badge').classList.remove('dn');
-    document.getElementById('user-badge-name').textContent=u.nome||u.login||'';
-    if(u.role==='op'||u.role==='com'){
+    document.getElementById('user-badge-name').textContent=fresh.nome||u.login;
+    if(fresh.role==='op'||fresh.role==='com'){
       document.getElementById('app-layout').style.display='none';
       document.getElementById('approver-view').classList.remove('dn');
       renderApproverView();
@@ -2371,13 +2374,27 @@ document.addEventListener('click',e=>{
 });
 // Populate contract combo when contracts load
 function popCF(){
+  // Populate contract select + dropdown
   const s=document.getElementById('fca');if(!s)return;
   const cur=s.value;
   s.innerHTML='<option value="">Todos os contratos</option>'+cs.map(c=>`<option value="${c.id}" ${cur===c.id?'selected':''}>${c.nomeContrato}</option>`).join('');
-  // Also update combo dropdown
-  const drop=document.getElementById('fca-drop');if(!drop)return;
-  drop.innerHTML='<div class="combo-opt" onclick="selCombo('fca-txt','fca','','rA')">Todos os contratos</div>'+
-    cs.map(c=>`<div class="combo-opt" onclick="selCombo('fca-txt','fca','${c.id}','rA')">${c.nomeContrato} — ${c.nomeCliente}</div>`).join('');
+  const drop=document.getElementById('fca-drop');
+  if(drop){
+    drop.innerHTML='<div class="combo-opt" onclick="selCombo(&quot;fca-txt&quot;,&quot;fca&quot;,&quot;&quot;,&quot;rA&quot;)">Todos os contratos</div>'+
+      cs.map(c=>`<div class="combo-opt" onclick="selCombo('fca-txt','fca','${c.id.replace(/'/g,'\u0027')}','rA')">${c.nomeContrato} — ${c.nomeCliente||''}</div>`).join('');
+  }
+  // Populate status dropdown
+  const sdrop=document.getElementById('fsa-drop');
+  if(sdrop&&!sdrop.children.length){
+    const statuses=['','locado','manutenção','reserva','reserva sinistro','sinistro','disponível','venda','desmobilizado'];
+    sdrop.innerHTML=statuses.map(s=>`<div class="combo-opt" onclick="selCombo('fsa-txt','fsa','${s}','rA')">${s||'Todos os status'}</div>`).join('');
+  }
+  // Populate tipo dropdown
+  const tdrop=document.getElementById('fta-drop');
+  if(tdrop&&!tdrop.children.length){
+    const tipos=['','Equipamento','Componente','Implemento','Serviço'];
+    tdrop.innerHTML=tipos.map(t=>`<div class="combo-opt" onclick="selCombo('fta-txt','fta','${t}','rA')">${t||'Todos os tipos'}</div>`).join('');
+  }
 }
 
 // ═══════════════ INIT ═══════════════
