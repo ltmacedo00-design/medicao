@@ -117,7 +117,7 @@ html,body{height:100%;font-family:'Barlow',sans-serif;font-size:13px;color:var(-
 }
 
 /* ── MAIN ── */
-.main{flex:1;overflow-y:auto;overflow-x:auto;padding:24px 28px;background:var(--bg);height:100%;}
+.main{flex:1;overflow:auto;padding:24px 28px;background:var(--bg);height:100%;}
 .main::-webkit-scrollbar{width:4px;}
 .main::-webkit-scrollbar-track{background:transparent;}
 .main::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
@@ -222,7 +222,7 @@ html,body{height:100%;font-family:'Barlow',sans-serif;font-size:13px;color:var(-
 .bp{background:var(--pink-bg);color:var(--pink-text);}
 
 /* ── TABLES ── */
-.tw{border:1px solid var(--border);border-radius:var(--r2);overflow-x:auto;overflow-y:visible;}
+.tw{border:1px solid var(--border);border-radius:var(--r2);}
 /* .tw.mh scroll handled by .main */
 table{width:100%;min-width:max-content;border-collapse:collapse;font-size:11px;}
 th{
@@ -313,7 +313,7 @@ tr.gt td{background:#004042;color:#fff;font-weight:600;}
 .ff textarea{resize:vertical;min-height:54px;}
 
 /* ── KANBAN ── */
-.board{display:flex;gap:12px;overflow-x:auto;padding-bottom:10px;align-items:flex-start;}
+.board{display:flex;gap:12px;padding-bottom:10px;align-items:flex-start;}
 .board::-webkit-scrollbar{height:4px;}
 .board::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 .kc{
