@@ -71,7 +71,6 @@ html,body{height:100%;font-family:'Barlow',sans-serif;font-size:13px;color:var(-
   padding:0 0 16px;
   height:100%;
   overflow-y:auto;
-  overflow-x:hidden;
 }
 .sidebar-logo{
   padding:22px 18px 18px;
@@ -118,7 +117,7 @@ html,body{height:100%;font-family:'Barlow',sans-serif;font-size:13px;color:var(-
 }
 
 /* ── MAIN ── */
-.main{flex:1;overflow-y:auto;overflow-x:hidden;padding:24px 28px;background:var(--bg);height:100%;}
+.main{flex:1;overflow-y:auto;overflow-x:auto;padding:24px 28px;background:var(--bg);height:100%;}
 .main::-webkit-scrollbar{width:4px;}
 .main::-webkit-scrollbar-track{background:transparent;}
 .main::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
@@ -578,8 +577,6 @@ tr.gt td{background:#004042;color:#fff;font-weight:600;}
           <select class="sel" id="fca" onchange="rA()"><option value="">Todos os contratos</option></select>
         </div>
         <div style="display:flex;gap:6px">
-          <button class="btn" onclick="dlTpl()"><i class="ti ti-download"></i> Template .xlsx</button>
-          <button class="btn" onclick="document.getElementById('imp').click()"><i class="ti ti-upload"></i> Importar</button>
           <input type="file" id="imp" accept=".xlsx,.csv" class="dn" onchange="impFile(this)">
           <button class="btn btn-p" onclick="openEM(null)"><i class="ti ti-plus"></i> Novo ativo</button>
         </div>
@@ -642,6 +639,7 @@ tr.gt td{background:#004042;color:#fff;font-weight:600;}
       <div class="tb">
         <button class="tbb act" onclick="stab('adm','usuarios',this)">Usuários</button>
         <button class="tbb" onclick="stab('adm','faturistas',this)">Faturistas</button>
+        <button class="tbb" onclick="stab('adm','import',this)">Importação</button>
       </div>
       <!-- USUARIOS -->
       <div id="sp-adm-usuarios" class="sp2 act">
@@ -655,6 +653,23 @@ tr.gt td{background:#004042;color:#fff;font-weight:600;}
         <div class="tw"><table><thead><tr>
           <th>Login</th><th>Nome</th><th>Perfil</th><th>Senha</th><th></th>
         </tr></thead><tbody id="tbody-usuarios"></tbody></table></div>
+      </div>
+      <!-- IMPORTACAO -->
+      <div id="sp-adm-import" class="sp2">
+        <div style="max-width:600px">
+          <div class="sl" style="margin-top:0">Importar dados</div>
+          <div class="ht"><i class="ti ti-info-circle"></i> Importe ativos e contratos via planilha .xlsx. Se o ativo já existir (mesma tag), os dados serão sobrescritos.</div>
+          <div style="display:flex;gap:10px;margin-bottom:24px">
+            <button class="btn btn-p" onclick="document.getElementById('imp').click()"><i class="ti ti-upload"></i> Importar planilha</button>
+            <button class="btn" onclick="dlTpl()"><i class="ti ti-download"></i> Baixar template .xlsx</button>
+          </div>
+          <div class="sl">Exportar backup</div>
+          <div class="ht"><i class="ti ti-info-circle"></i> Exporte todos os dados do sistema em JSON para backup ou migração.</div>
+          <div style="display:flex;gap:10px">
+            <button class="btn" onclick="dlJSON()"><i class="ti ti-database-export"></i> Exportar JSON</button>
+            <button class="btn" onclick="dlHTML()"><i class="ti ti-file-download"></i> Baixar HTML</button>
+          </div>
+        </div>
       </div>
       <!-- FATURISTAS -->
       <div id="sp-adm-faturistas" class="sp2">
