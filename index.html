@@ -648,7 +648,7 @@ tr.gt td{background:#004042;color:#fff;font-weight:600;}
     <!-- KANBAN -->
     <div id="page-kanban" class="page">
       <div class="topbar">
-        <div class="topbar-left"><div class="mn"><button onclick="chM('kanban',-1)"><i class="ti ti-chevron-left"></i></button><div class="mnl" id="kml"></div><button onclick="chM('kanban',1)"><i class="ti ti-chevron-right"></i></button></div><div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Buscar contrato, cliente..." id="sk" oninput="rK()"></div><span id="kc" style="font-size:11px;color:var(--text3)"></span></div>
+        <div class="topbar-left"><div class="mn"><button onclick="chM('kanban',-1)"><i class="ti ti-chevron-left"></i></button><div class="mnl" id="kml"></div><button onclick="chM('kanban',1)"><i class="ti ti-chevron-right"></i></button></div><div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Buscar contrato, cliente..." id="sk" oninput="rK()"></div><select class="sel" id="kpf" onchange="rK()"><option value="">Todos os períodos</option><option value="1-20">Dia 1 ao 20</option><option value="21-20">Dia 21 ao 20</option><option value="1-30">Dia 1 ao 30</option><option value="1-31">Dia 1 ao 31</option></select><span id="kc" style="font-size:11px;color:var(--text3)"></span></div>
       </div>
       <div class="board" id="kb"></div>
     </div>
@@ -1284,13 +1284,15 @@ function rCP(){
 function rK(){
   const{y,m}=mo.kanban;const lbl=document.getElementById('kml');if(lbl)lbl.textContent=yml(y,m);
   const cur=ym(y,m);const q=(document.getElementById('sk')?.value||'').toLowerCase();
+  const pfVal=document.getElementById('kpf')?.value||'';
   const vis=bs.filter(b=>{
     const isCur=b.competencia===cur;
     const isBL=b.competencia<cur&&b.status!==SFAT&&b.status!==SCAN;
     if(!isCur&&!isBL)return false;
-    if(!q)return true;
     const c=cs.find(x=>x.id===b.contractId);
-    return c?.nomeContrato.toLowerCase().includes(q)||c?.nomeCliente.toLowerCase().includes(q);
+    if(q&&!(c?.nomeContrato.toLowerCase().includes(q)||c?.nomeCliente.toLowerCase().includes(q)))return false;
+    if(pfVal&&c){const[pi,pf]=pfVal.split('-').map(Number);if(c.periodoInicio!==pi||c.periodoFim!==pf)return false;}
+    return true;
   });
   const kc=document.getElementById('kc');if(kc)kc.textContent=`${vis.length} BM${vis.length!==1?'s':''}`;
   const board=document.getElementById('kb');if(!board)return;
@@ -1307,17 +1309,23 @@ function rKC(b,cur){
   const isBL=b.competencia<cur;const[by,bm]=b.competencia.split('-').map(Number);
   const valor=cBMV(b);const hasMed=b.medicao&&Object.keys(b.medicao).length>0;
   const isMon=b.status===SMON;
+  const nEq=(b.equipIds||[]).length;
   // Excedente periodicidade alerts
   const equipsB=(b.equipIds||[]).map(eid=>ativos.find(x=>x.id===eid)).filter(Boolean);
-  const perLabels={mensal:'Mensal',trimestral:'Trimestral',semestral:'Semestral',anual:'Anual'};
-  const perSet=new Set();let alertaExc=false;
-  equipsB.forEach(a=>{const fin=gEF(a);if(fin.perExc&&fin.perExc!=='mensal'){perSet.add(fin.perExc);if(deveCobrarExc(fin.perExc,fin.ultCobrExc,b.competencia))alertaExc=true;}});
-  const perBadges=[...perSet].map(p=>`<span class="badge ${alertaExc?'br':'bb'}" title="${alertaExc?'Período atingido — cobrar excedente':''}">${perLabels[p]}${alertaExc?' ⚠':''}</span>`).join('');
-  // Per-equip discount alerts
+  const perLabels={trimestral:'Exc. Trim.',semestral:'Exc. Sem.',anual:'Exc. Anual'};
+  let alertaExc=false;const perBadgesArr=[];
+  equipsB.forEach(a=>{const fin=gEF(a);if(fin.perExc&&fin.perExc!=='mensal'){if(!perBadgesArr.find(x=>x===fin.perExc))perBadgesArr.push(fin.perExc);if(deveCobrarExc(fin.perExc,fin.ultCobrExc,b.competencia))alertaExc=true;}});
+  const perBadges=perBadgesArr.map(p=>`<span class="badge ${alertaExc?'br':'bb'}">${perLabels[p]||p}${alertaExc?' ⚠':''}</span>`).join('');
   const hasDescPend=(b.equipIds||[]).some(eid=>{const med=b.medicao?.[eid];return(med?.descCom||0)>0||(med?.descOp||0)>0;});
+  // Closing period
+  const periodoLabel=`Dia ${c.periodoInicio} ao ${c.periodoFim}`;
   return`<div class="kd ${isBL?'bk':''}" data-bm-id="${b.id}">
     <div class="kdn">${c.nomeContrato}</div>
     <div class="kdc">${c.nomeCliente}</div>
+    <div style="font-size:10px;color:var(--text3);margin-bottom:5px;display:flex;align-items:center;gap:6px">
+      <i class="ti ti-calendar-event" style="font-size:11px"></i>${periodoLabel}
+      <span style="margin-left:auto;font-weight:600;color:var(--text2)">${nEq} ativo${nEq!==1?'s':''}</span>
+    </div>
     <div class="kdm">
       <span class="badge bb">${yml(by,bm)}</span>
       ${isBL?'<span class="badge br">Backlog</span>':''}
@@ -1326,7 +1334,6 @@ function rKC(b,cur){
       ${hasDescPend?'<span class="badge ba">Com desconto</span>':''}
       ${perBadges}
     </div>
-    <div class="kde">${equipsB.map(a=>{const fin=gEF(a);const al=fin.perExc!=='mensal'&&deveCobrarExc(fin.perExc,fin.ultCobrExc,b.competencia);return'<span style="font-weight:700;color:'+(al?'var(--red)':'#FFFFFF')+'">'+(al?'⚠ ':'')+a.ativo+'</span><span style="color:var(--text3)"> · '+a.equipamento+(fin.perExc!=='mensal'?' ['+fin.perExc+']':'')+' </span>';}).join('<br>')}</div>
     <div class="kdf">
       <div class="kdv">${f(valor)}</div>
       <div class="kda">
@@ -1360,6 +1367,12 @@ function hSC(bmId,ns,skipPin){
       addHist(b,'movimentação',os,ns,'Aprovado via PIN');
       b.status=ns;sB(b);rK();
     });return;
+  }
+  // Moving to Aguardando Aprovação Cliente → generate PDF
+  if(ns===SAPROV_CLI){
+    addHist(b,'movimentação',os,ns,'BM enviado para aprovação do cliente');
+    b.status=ns;sB(b);rK();
+    gerarPDFBM(bmId);return;
   }
   // Moving to Faturado → NF modal
   if(ns===SFAT){
@@ -1832,6 +1845,7 @@ function dlTpl(){
 }
 async function impFile(input){
   const file=input.files[0];if(!file)return;
+  const si=document.getElementById('si');
   const data=await file.arrayBuffer();const wb=XLSX.read(data);
   // Sheet 2 = Contratos
   if(wb.SheetNames[1]){
@@ -1844,10 +1858,12 @@ async function impFile(input){
         const row=rowsC[i];const nm=getC(row,'Nome contrato');if(!nm)continue;
         if(!cs.find(x=>x.nomeContrato===nm)){
           const nc={id:uid(),nomeContrato:nm,nroContrato:getC(row,'Nº contrato'),codCliente:getC(row,'Cód. SAP'),nomeCliente:getC(row,'Nome cliente'),periodoInicio:parseInt(getC(row,'Período início (dia)'))||1,periodoFim:parseInt(getC(row,'Período fim (dia)'))||30,vencimento:getC(row,'Vencimento (AAAA-MM-DD)'),frete:getC(row,'Frete (nosso/cliente)')||'nosso',m1Fixo:getC(row,'M+1 fixo (S/N)').toUpperCase()==='S',responsavelMedicao:getC(row,'Responsável medição')||''};
-          cs.push(nc);await sC(nc);
+          cs.push(nc);
         }
       }
     }
+    // Batch save contracts
+    await Promise.all(cs.map(c=>fbSet('contracts/'+c.id,c)));
   }
   const ws=wb.Sheets[wb.SheetNames[0]];
   const rows=XLSX.utils.sheet_to_json(ws,{header:1});if(rows.length<2){alert('Arquivo vazio');return;}
@@ -1863,17 +1879,23 @@ async function impFile(input){
     const novoAt={id:uid(),ativo:tag,serie:get(row,'Nº série'),tipo:get(row,'Tipo')||'Equipamento',equipamento:get(row,'Equipamento'),status:normalizeStatus(get(row,'Status')||'locado'),contractId:c?.id||null,sla:get(row,'SLA'),mensalidade:parseFloat(get(row,'Mensalidade'))||0,franquia:parseFloat(get(row,'Franquia (h)'))||0,horaContratual:parseFloat(get(row,'Hora contratual'))||0,m1Fixo:get(row,'M+1 fixo (S/N)').toUpperCase()==='S',faixas,franquiaReduzida:get(row,'Franquia reduzida (S/N)').toUpperCase()==='S',mesesFR:(get(row,'Meses FR (Jan,Fev...)')||'').split(',').map(ms=>MS.indexOf(ms.trim())).filter(x=>x>=0),precoFR:parseFloat(get(row,'Preço FR'))||0,perExc:get(row,'Per. cobr. exc. (mensal/trimestral/semestral/anual)')||'mensal',tipoExc:get(row,'Tipo cobr. exc. (mês a mês/pool de horas)')||'mês a mês',ultCobrExc:get(row,'Últ. cobr. exc. (AAAA-MM-DD)')||'',dataMob:get(row,'Data mobilização (AAAA-MM-DD)')||null,horimetroMob:parseFloat(get(row,'Horímetro mobilização'))||0};
     const existing=ativos.findIndex(x=>x.ativo===tag);
     if(existing>=0){
-      // Preserve existing id — overwrite all other fields
       novoAt.id=ativos[existing].id;
       ativos[existing]={...ativos[existing],...novoAt};
-      await sAt(ativos[existing]);
     } else {
       ativos.push(novoAt);
-      await sAt(novoAt);
     }
     importados++;
   }
-  input.value='';alert(`Importação concluída: ${importados} ativo(s).`);
+  // FAST: batch write all ativos to Firebase in parallel (no await per item)
+  si.textContent=`Salvando ${importados} ativos...`;si.classList.add('show');
+  lsSave();
+  const batchSize=20;
+  for(let i=0;i<ativos.length;i+=batchSize){
+    const batch=ativos.slice(i,i+batchSize);
+    await Promise.all(batch.map(a=>fbSet('ativos/'+a.id,a)));
+  }
+  si.classList.remove('show');
+  input.value='';alert(`Importação concluída: ${importados} ativo(s) em ${Math.ceil(ativos.length/batchSize)} lotes.`);
   await autoCreateBMs(mo.kanban.y,mo.kanban.m);rAll();
 }
 
@@ -2233,6 +2255,132 @@ async function excluirFaturista(idx){
   faturistas.splice(idx,1);
   await fbSet('meta/faturistas',faturistas);
   lsSave();rAdmFaturistas();
+}
+
+// ═══════════════ PDF BM ═══════════════
+function gerarPDFBM(bmId){
+  const b=bs.find(x=>x.id===bmId);const c=cs.find(x=>x.id===b.contractId);if(!b||!c)return;
+  const[by,bm]=b.competencia.split('-').map(Number);
+  const{tM,tE,dC,dO,tot}=gBMS(b);
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const equipsRows=(b.equipIds||[]).map(eid=>{
+    const a=ativos.find(x=>x.id===eid);if(!a)return'';
+    const med=b.medicao?.[eid]||{};const fin=gEF(a);
+    const[,mbm]=b.competencia.split('-').map(Number);
+    const isFR=fin.franquiaReduzida&&fin.mesesFR.includes(mbm-1);
+    const prop=med.prop??1;
+    const mens=(isFR?fin.precoFR:fin.mensalidade)*prop;
+    const horas=med.hFim!=null?Math.max(0,(med.hFim||0)-(med.hIni||0)):null;
+    const fP=fin.franquiaLivre?null:Math.round(fin.franquia*prop*10)/10;
+    const eH=horas!=null&&fP!=null?Math.max(0,horas-fP):null;
+    const eV=eH!=null&&eH>0?cExc(fin.faixas,fP,horas):0;
+    const descCom=med.descCom||0;const descOp=med.descOp||0;
+    return`<tr>
+      <td>${a.ativo}</td>
+      <td>${a.equipamento||'—'}</td>
+      <td>${med.dataIni?new Date(med.dataIni).toLocaleDateString('pt-BR'):'—'}</td>
+      <td>${med.dataFim?new Date(med.dataFim).toLocaleDateString('pt-BR'):'—'}</td>
+      <td>${f(isFR?fin.precoFR:fin.mensalidade)}</td>
+      <td>${Math.round(prop*100)}%</td>
+      <td>${f(mens)}</td>
+      <td>${fin.franquiaLivre?'Livre':fP!=null?fP+'h':'—'}</td>
+      <td>${horas!=null?horas+'h':'—'}</td>
+      <td>${eH!=null&&eH>0?eH+'h':'—'}</td>
+      <td>${eV>0?f(eV):'—'}</td>
+      <td>${descCom>0?f(descCom):'—'}</td>
+      <td>${descOp>0?f(descOp):'—'}</td>
+    </tr>`;
+  }).join('');
+
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Arial',sans-serif;font-size:11px;color:#1A1917;background:#fff;padding:32px}
+    .header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;padding-bottom:20px;border-bottom:3px solid #004042}
+    .brand{display:flex;flex-direction:column}
+    .brand-name{font-size:28px;font-weight:900;color:#004042;letter-spacing:-1px;text-transform:uppercase}
+    .brand-name span{color:#F37021}
+    .brand-sub{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:2px;margin-top:2px}
+    .doc-info{text-align:right}
+    .doc-title{font-size:16px;font-weight:700;color:#004042;text-transform:uppercase;letter-spacing:1px}
+    .doc-sub{font-size:10px;color:#999;margin-top:4px}
+    .section{margin-bottom:20px}
+    .section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#004042;border-bottom:1px solid #004042;padding-bottom:4px;margin-bottom:10px}
+    .info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .info-item label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#999;display:block;margin-bottom:2px}
+    .info-item span{font-size:12px;font-weight:600;color:#1A1917}
+    table{width:100%;border-collapse:collapse;font-size:10px}
+    th{background:#004042;color:#fff;padding:7px 8px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:0.5px}
+    td{padding:7px 8px;border-bottom:1px solid #EAEAE7;vertical-align:middle}
+    tr:nth-child(even) td{background:#F7F7F5}
+    .totals{background:#004042;color:#fff;margin-top:12px;border-radius:6px;padding:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .total-item label{font-size:9px;text-transform:uppercase;letter-spacing:1px;opacity:0.7;display:block;margin-bottom:2px}
+    .total-item span{font-size:16px;font-weight:700}
+    .total-item.highlight span{color:#F37021;font-size:20px}
+    .footer{margin-top:28px;padding-top:16px;border-top:1px solid #EAEAE7;display:flex;justify-content:space-between;align-items:flex-end}
+    .footer-note{font-size:9px;color:#999;max-width:400px;line-height:1.5}
+    .footer-sign{text-align:right}
+    .sign-line{border-top:1px solid #1A1917;width:200px;margin-bottom:4px;margin-left:auto}
+    .obs-box{background:#FFF8F2;border:1px solid #FDD0B0;border-radius:4px;padding:10px;margin-top:10px;font-size:10px;color:#633806}
+  </style></head><body>
+  <div class="header">
+    <div class="brand">
+      <div class="brand-name"><span>Mills</span> Rental</div>
+      <div class="brand-sub">Boletim de Medição</div>
+    </div>
+    <div class="doc-info">
+      <div class="doc-title">Boletim de Medição</div>
+      <div class="doc-sub">Emitido em ${hoje}</div>
+      <div class="doc-sub" style="margin-top:4px;font-size:11px;font-weight:600;color:#004042">Competência: ${ML[bm-1].toUpperCase()} ${by}</div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Dados do Contrato</div>
+    <div class="info-grid">
+      <div class="info-item"><label>Cliente</label><span>${c.nomeCliente}</span></div>
+      <div class="info-item"><label>Contrato</label><span>${c.nomeContrato}</span></div>
+      <div class="info-item"><label>Nº Contrato</label><span>${c.nroContrato||'—'}</span></div>
+      <div class="info-item"><label>Cód. SAP</label><span>${c.codCliente||'—'}</span></div>
+      <div class="info-item"><label>Período de fechamento</label><span>Dia ${c.periodoInicio} ao dia ${c.periodoFim}</span></div>
+
+      ${c.responsavelMedicao?`<div class="info-item"><label>Responsável pela medição</label><span>${c.responsavelMedicao}</span></div>`:''}
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Medição por Equipamento</div>
+    <table>
+      <thead><tr>
+        <th>Frota</th><th>Equipamento</th><th>Início</th><th>Fim</th>
+        <th>Mensalidade base</th><th>Prop.</th><th>Mensalidade final</th>
+        <th>Franquia</th><th>Hrs trabalhadas</th><th>Hrs excedentes</th><th>Valor exc.</th>
+        <th>Desc. com.</th><th>Desc. op.</th>
+      </tr></thead>
+      <tbody>${equipsRows}</tbody>
+    </table>
+  </div>
+  <div class="totals">
+    <div class="total-item"><label>Total mensalidades</label><span>${f(tM)}</span></div>
+    <div class="total-item"><label>Total excedentes</label><span>${f(tE)}</span></div>
+    <div class="total-item"><label>Descontos</label><span style="color:#FDD0B0">${f(dC+dO)}</span></div>
+    <div class="total-item highlight"><label>Total a faturar</label><span>${f(tot)}</span></div>
+  </div>
+  ${dC>0||dO>0?`<div class="obs-box">Descontos aplicados: ${dC>0?'Comercial '+f(dC):''}${dC>0&&dO>0?' | ':''}${dO>0?'Operacional '+f(dO):''}</div>`:''}
+  <div class="footer">
+    <div class="footer-note">
+      Este boletim de medição foi gerado pelo Sistema de Medição Mills e está sujeito à aprovação do cliente.<br>
+      Em caso de divergências, entre em contato com a equipe de medição.
+    </div>
+    <div class="footer-sign">
+      <div class="sign-line"></div>
+      <div style="font-size:10px;color:#666">Aprovação do cliente — ${c.nomeCliente}</div>
+    </div>
+  </div>
+  </body></html>`;
+
+  const w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>w.print(),800);
 }
 
 // ═══════════════ MIGRATION / UTILS ═══════════════
