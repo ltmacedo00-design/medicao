@@ -845,7 +845,8 @@ async function sC(c){lsSave();ss2();await fbSet('contracts/'+c.id,c);}
 async function sB(b){lsSave();ss2();await fbSet('bms/'+b.id,b);}
 async function sE(){lsSave();await fbSet('meta/manualEdits',me);}
 
-async function lAll(){
+async function lAll(){await syncFirebase();}
+async function lAll_old(){
   lsLoad();rAll();
   try{
     const[fat,fcs,fbs,fme,fus,fft]=await Promise.all([
@@ -875,7 +876,7 @@ async function lAll(){
     lsSave();rAll();
   }catch(e){console.warn('Firebase sync failed',e);}
 }
-function setupL(){setInterval(async()=>{try{const[fat,fcs,fbs]=await Promise.all([fbGet('ativos'),fbGet('contracts'),fbGet('bms')]);if(fat&&typeof fat==='object')ativos=Object.values(fat).filter(a=>a&&a.id);if(fcs&&typeof fcs==='object')cs=Object.values(fcs).filter(c=>c&&c.id);if(fbs&&typeof fbs==='object')bs=Object.values(fbs).filter(b=>b&&b.id);lsSave();rAll();}catch(e){}},30000);}
+function setupL(){setInterval(()=>syncFirebase(),30000);}
 
 function rAll(){if(!_user)return;if(_user.role==='op'||_user.role==='com'){renderApproverView();return;}rA();rC();rP();rCons();rCP();rK();popCF();}
 
@@ -2581,21 +2582,48 @@ function popCF(){
 }
 
 // ═══════════════ INIT ═══════════════
-document.addEventListener('DOMContentLoaded',async()=>{
-  await lAll();
+document.addEventListener('DOMContentLoaded',()=>{
+  // 1. Load cache immediately → instant render
+  lsLoad();
   checkSession();
-  // Auto-create BMs for last month and current month
-  const today=new Date();
-  const prevM=today.getMonth()===0?{y:today.getFullYear()-1,m:12}:{y:today.getFullYear(),m:today.getMonth()};
-  const currM={y:today.getFullYear(),m:today.getMonth()+1};
-  await autoCreateBMs(prevM.y,prevM.m);
-  await autoCreateBMs(currM.y,currM.m);
-  // Only render if user is logged in (checkSession already set layout)
-  if(_user&&(_user.role!=='op'&&_user.role!=='com'))rAll();
-  else if(_user)renderApproverView();
+  // 2. Sync Firebase in background — no await, no blocking
+  syncFirebase();
   setupL();
-
 });
+
+async function syncFirebase(){
+  try{
+    const[fat,fcs,fbs,fme,fus,fft]=await Promise.all([
+      fbGet('ativos'),fbGet('contracts'),fbGet('bms'),fbGet('meta/manualEdits'),
+      fbGet('meta/users'),fbGet('meta/faturistas')
+    ]);
+    let changed=false;
+    if(fat&&typeof fat==='object'){
+      const fresh=Object.values(fat).filter(a=>a&&a.id);
+      if(fresh.length){
+        fresh.forEach(a=>{
+          if(a.dataMob&&isExcelSerial(a.dataMob))a.dataMob=xlDate(String(a.dataMob));
+          if(a.dataDesmob&&isExcelSerial(a.dataDesmob))a.dataDesmob=xlDate(String(a.dataDesmob));
+          if(a.ultCobrExc&&isExcelSerial(a.ultCobrExc))a.ultCobrExc=xlDate(String(a.ultCobrExc));
+        });
+        ativos=fresh;changed=true;
+      }
+    }
+    if(fcs&&typeof fcs==='object'){
+      const fresh=Object.values(fcs).filter(c=>c&&c.id);
+      if(fresh.length){
+        fresh.forEach(c=>{if(c.vencimento&&isExcelSerial(c.vencimento))c.vencimento=xlDate(String(c.vencimento));});
+        cs=fresh;changed=true;
+      }
+    }
+    if(fbs&&typeof fbs==='object'){const fresh=Object.values(fbs).filter(b=>b&&b.id);if(fresh.length){bs=fresh;changed=true;}}
+    if(fme)me=fme;
+    if(fus&&typeof fus==='object'){const valid=Object.values(fus).every(u=>u&&u.senha&&u.role);if(valid)USERS=fus;}
+    if(fft&&Array.isArray(fft))faturistas=fft;
+    if(changed){lsSave();if(_user)rAll();}
+  }catch(e){console.warn('Firebase sync failed',e);}
+}
+function isExcelSerial(v){const n=parseFloat(v);return!isNaN(n)&&n>1000&&n<100000&&!String(v).includes('-');}
 </script>
 
 </body>
