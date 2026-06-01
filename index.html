@@ -720,6 +720,9 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
             <button class="btn" style="border-color:var(--amber-text);color:var(--amber-text)" onclick="migrarStatus()">
               <i class="ti ti-database"></i> Normalizar status dos ativos
             </button>
+            <button class="btn" style="border-color:var(--red);color:var(--red)" onclick="deletarBMsMaio()">
+              <i class="ti ti-trash"></i> Apagar BMs de Maio/2026
+            </button>
           </div>
         </div>
       </div>
@@ -1040,7 +1043,11 @@ function hExc(bm){
   return(bm.equipIds||[]).some(eid=>{const med=bm.medicao[eid];if(!med)return false;const a=ativos.find(x=>x.id===eid);if(!a)return false;const fin=gEF(a);if(fin.franquiaLivre)return false;const p=med.prop??1;return Math.max(0,(med.hFim||0)-(med.hIni||0))>fin.franquia*p;});
 }
 // Competência for an ativo in a given period
-function getComp(c,a,y,m){return isM1(c,a)?ym(...Object.values(aM(y,m,1))):ym(y,m);}
+function getComp(c,a,y,m){
+  // M+1: the work was done in previous month, but billing/measurement is in current month
+  // So the ativo appears in the current month's previsto
+  return ym(y,m);
+}
 
 // ═══════════════ AUTO-CREATE BMs ═══════════════
 async function autoCreateBMs(year,month){
@@ -1058,7 +1065,9 @@ async function autoCreateBMs(year,month){
       return true;
     });
     if(!contractAtivos.length)continue;
-    const comp=isM1(c,null)?ym(...Object.values(aM(year,month,1))):ym(year,month);
+    // M+1: work was done in (year,month-1), billing is in (year,month)
+    // So competencia = (year,month) for both — M+1 and normal both appear in current month
+    const comp=ym(year,month);
     const existing=bs.find(b=>b.contractId===c.id&&b.competencia===comp&&b.status!==SCAN);
     if(!existing){
       const nb={id:uid(),contractId:c.id,competencia:comp,status:'Ag. Fechamento',equipIds:contractAtivos.map(a=>a.id),medicao:{},dataEntrada:new Date().toISOString()};
@@ -1311,7 +1320,7 @@ function rP(){
   // BMs done (Faturado) this month
   const fatBMs=bs.filter(b=>b.competencia===cur&&b.status===SFAT);
   // Backlog: pending BMs from previous months
-  const bl=bs.filter(b=>b.competencia<cur&&b.status!==SFAT&&b.status!==SCAN);
+  const bl=bs.filter(b=>b.competencia>='2026-06'&&b.competencia<cur&&b.status!==SFAT&&b.status!==SCAN);
   // Build previsto groups by contract
   const grupos=[];
   cs.forEach(c=>{
@@ -1418,7 +1427,7 @@ function rK(){
   const pfVal=document.getElementById('kpf')?.value||'';
   const vis=bs.filter(b=>{
     const isCur=b.competencia===cur;
-    const isBL=b.competencia<cur&&b.status!==SFAT&&b.status!==SCAN;
+    const isBL=b.competencia>='2026-06'&&b.competencia<cur&&b.status!==SFAT&&b.status!==SCAN;
     if(!isCur&&!isBL)return false;
     const c=cs.find(x=>x.id===b.contractId);
     if(q&&!(c?.nomeContrato.toLowerCase().includes(q)||c?.nomeCliente.toLowerCase().includes(q)))return false;
@@ -2515,6 +2524,19 @@ function gerarPDFBM(bmId){
 }
 
 // ═══════════════ MIGRATION / UTILS ═══════════════
+async function deletarBMsMaio(){
+  const mayo=bs.filter(b=>b.competencia==='2026-05');
+  if(!mayo.length){alert('Nenhum BM de Maio/2026 encontrado.');return;}
+  if(!confirm(`Apagar ${mayo.length} BM(s) de Maio/2026?
+
+Esta ação não pode ser desfeita.`))return;
+  for(const b of mayo){
+    try{await fetch(DB+'/bms/'+b.id+'.json',{method:'DELETE'});}catch(e){}
+  }
+  bs=bs.filter(b=>b.competencia!=='2026-05');
+  lsSave();rAll();
+  alert(`${mayo.length} BM(s) de Maio/2026 apagado(s).`);
+}
 async function migrarStatus(){
   let count=0;
   for(const a of ativos){
@@ -2565,21 +2587,15 @@ Confirmar?`;
   });
 
   for(const [cid,grupos] of Object.entries(byContract)){
-    // M+1 group → competência maio
-    if(grupos.m1.length){
-      const nb={
-        id:uid(),contractId:cid,competencia:'2026-05',
-        status:'Ag. Fechamento',equipIds:grupos.m1,
-        medicao:{},historico:[{ts:new Date().toISOString(),usuario:'Sistema',tipo:'criação',de:'',para:'Ag. Fechamento',obs:'BM criado via reset de junho'}],
-        dataEntrada:new Date().toISOString()
-      };
-      bs.push(nb);await sB(nb);created.push(nb);
-    }
-    // Normal group → competência junho
-    if(grupos.normal.length){
+    // ALL BMs → competência JUNHO/2026
+    // M+1 = trabalho de maio faturado em junho (flag isM1 no BM)
+    // Normal = trabalho de junho faturado em junho
+    const allIds=[...grupos.m1,...grupos.normal];
+    if(allIds.length){
       const nb={
         id:uid(),contractId:cid,competencia:'2026-06',
-        status:'Ag. Fechamento',equipIds:grupos.normal,
+        isM1BM:grupos.m1.length>0&&grupos.normal.length===0,
+        status:'Ag. Fechamento',equipIds:allIds,
         medicao:{},historico:[{ts:new Date().toISOString(),usuario:'Sistema',tipo:'criação',de:'',para:'Ag. Fechamento',obs:'BM criado via reset de junho'}],
         dataEntrada:new Date().toISOString()
       };
@@ -2588,19 +2604,13 @@ Confirmar?`;
   }
 
   lsSave();
-  // Navigate kanban to junho for normal / maio for M+1
-  mo.kanban={y:2026,m:6};
-  mo.prev={y:2026,m:6};
+  mo.kanban={y:2026,m:6};mo.prev={y:2026,m:6};
   rAll();
-
   si.textContent='Salvando...';
   setTimeout(()=>si.classList.remove('show'),1500);
   alert(`Concluído!
 
-${created.length} BM(s) criado(s):
-• Competência MAIO/2026: M+1
-• Competência JUNHO/2026: normais
-
+${created.length} BM(s) criado(s) para JUNHO/2026.
 Todos em "Ag. Fechamento".`);
 }
 
