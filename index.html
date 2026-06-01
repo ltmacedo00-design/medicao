@@ -505,6 +505,13 @@ tr.gt td{background:#004042;color:#fff;font-weight:600;}
 .login-err{color:var(--red);font-size:11px;margin-top:8px;min-height:16px;}
 .user-badge{display:flex;align-items:center;gap:8px;padding:10px 18px;border-top:1px solid rgba(255,255,255,0.1);margin-top:8px;}
 .user-badge-name{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.8);flex:1;}
+/* ── SORTABLE TH ── */
+th.sortable{cursor:pointer;user-select:none;}
+th.sortable:hover{background:var(--border);}
+th.sortable .si{display:inline-block;margin-left:4px;opacity:0.3;font-size:10px;vertical-align:middle;}
+th.sortable.asc .si::after{content:'▲';opacity:1;}
+th.sortable.desc .si::after{content:'▼';opacity:1;}
+th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
 /* ── FILTER COMBO ── */
 .filter-combo{position:relative;display:inline-block;}
 .combo-drop{position:absolute;top:100%;left:0;min-width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow2);z-index:300;margin-top:2px;}
@@ -600,13 +607,24 @@ tr.gt td{background:#004042;color:#fff;font-weight:600;}
         </div>
       </div>
       <div id="sca" class="sc-row sc-5"></div>
-      <div class="tw mh"><table><thead><tr>
-        <th>Ativo</th><th>Nº série</th><th>Equipamento</th><th>Tipo</th><th>Status</th>
-        <th>Contrato</th><th>Cliente</th><th>SAP</th><th>Período</th><th>M+1</th>
-        <th>SLA</th><th>Mensalidade</th><th>Franquia</th><th>Hr contratual</th>
-        <th>Excedentes</th><th>Per. exc.</th><th>Tipo exc.</th><th>Últ. cobr. exc.</th>
+      <div class="tw mh"><table><thead id="tha"><tr>
+        <th class="sortable" onclick="sortA('ativo')">Ativo<span class="si"></span></th>
+        <th>Nº série</th>
+        <th class="sortable" onclick="sortA('equipamento')">Equipamento<span class="si"></span></th>
+        <th class="sortable" onclick="sortA('tipo')">Tipo<span class="si"></span></th>
+        <th class="sortable" onclick="sortA('status')">Status<span class="si"></span></th>
+        <th class="sortable" onclick="sortA('contrato')">Contrato<span class="si"></span></th>
+        <th class="sortable" onclick="sortA('cliente')">Cliente<span class="si"></span></th>
+        <th>SAP</th><th>Período</th><th>M+1</th>
+        <th>SLA</th>
+        <th class="sortable" onclick="sortA('mensalidade')">Mensalidade<span class="si"></span></th>
+        <th class="sortable" onclick="sortA('franquia')">Franquia<span class="si"></span></th>
+        <th>Hr contratual</th>
+        <th>Excedentes</th><th>Per. exc.</th><th>Tipo exc.</th>
+        <th class="sortable" onclick="sortA('ultCobrExc')">Últ. cobr. exc.<span class="si"></span></th>
         <th>Fr. reduzida</th><th>Meses FR</th><th>Preço FR</th>
-        <th>Mobilização</th><th>Horímetro mob.</th><th></th>
+        <th class="sortable" onclick="sortA('dataMob')">Mobilização<span class="si"></span></th>
+        <th>Horímetro mob.</th><th></th>
       </tr></thead><tbody id="tba"></tbody></table></div>
     </div>
     <!-- CONTRATOS -->
@@ -880,6 +898,72 @@ function setupL(){setInterval(()=>syncFirebase(),30000);}
 
 function rAll(){if(!_user)return;if(_user.role==='op'||_user.role==='com'){renderApproverView();return;}rA();rC();rP();rCons();rCP();rK();popCF();}
 
+// ═══════════════ SORT ═══════════════
+let sortState={col:null,dir:'asc'};
+
+function sortA(col){
+  if(sortState.col===col)sortState.dir=sortState.dir==='asc'?'desc':'asc';
+  else{sortState.col=col;sortState.dir='asc';}
+  // Update header styles
+  document.querySelectorAll('#tha th.sortable').forEach(th=>{
+    th.classList.remove('asc','desc');
+    if(th.onclick&&th.onclick.toString().includes("'"+col+"'"))
+      th.classList.add(sortState.dir);
+  });
+  rA();
+}
+
+function applySort(arr){
+  if(!sortState.col)return arr;
+  return [...arr].sort((a,b)=>{
+    const c=cs.find(x=>x.id===a.contractId);const c2=cs.find(x=>x.id===b.contractId);
+    let va,vb;
+    switch(sortState.col){
+      case 'ativo':va=a.ativo||'';vb=b.ativo||'';break;
+      case 'equipamento':va=a.equipamento||'';vb=b.equipamento||'';break;
+      case 'tipo':va=a.tipo||'';vb=b.tipo||'';break;
+      case 'status':va=a.status||'';vb=b.status||'';break;
+      case 'contrato':va=c?.nomeContrato||'';vb=c2?.nomeContrato||'';break;
+      case 'cliente':va=c?.nomeCliente||'';vb=c2?.nomeCliente||'';break;
+      case 'mensalidade':va=parseFloat(a.mensalidade)||0;vb=parseFloat(b.mensalidade)||0;return sortState.dir==='asc'?va-vb:vb-va;
+      case 'franquia':va=parseFloat(a.franquia)||0;vb=parseFloat(b.franquia)||0;return sortState.dir==='asc'?va-vb:vb-va;
+      case 'dataMob':va=a.dataMob||'';vb=b.dataMob||'';break;
+      case 'ultCobrExc':va=a.ultCobrExc||'';vb=b.ultCobrExc||'';break;
+      default:va='';vb='';
+    }
+    const r=va.localeCompare(vb,'pt-BR',{numeric:true,sensitivity:'base'});
+    return sortState.dir==='asc'?r:-r;
+  });
+}
+
+// Contract inner table sort
+let sortCC_state={};
+function sortCC(cid,col,th){
+  const cur=sortCC_state[cid]||{col:'ativo',dir:'asc'};
+  const dir=cur.col===col?(cur.dir==='asc'?'desc':'asc'):'asc';
+  sortCC_state[cid]={col,dir};
+  // Update headers in this contract's table
+  const tbl=th.closest('table');
+  if(tbl){tbl.querySelectorAll('th.sortable').forEach(h=>h.classList.remove('asc','desc'));th.classList.add(dir);}
+  rC();
+}
+function applySortCC(arr,state){
+  if(!state||!state.col)return arr;
+  return[...arr].sort((a,b)=>{
+    let va,vb;
+    switch(state.col){
+      case 'ativo':va=a.ativo||'';vb=b.ativo||'';break;
+      case 'equipamento':va=a.equipamento||'';vb=b.equipamento||'';break;
+      case 'status':va=a.status||'';vb=b.status||'';break;
+      case 'mensalidade':return state.dir==='asc'?(a.mensalidade||0)-(b.mensalidade||0):(b.mensalidade||0)-(a.mensalidade||0);
+      case 'dataMob':va=a.dataMob||'';vb=b.dataMob||'';break;
+      default:va='';vb='';
+    }
+    const r=va.localeCompare(vb,'pt-BR',{numeric:true,sensitivity:'base'});
+    return state.dir==='asc'?r:-r;
+  });
+}
+
 // ═══════════════ NAVIGATION ═══════════════
 function goPage(id,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.getElementById('page-'+id).classList.add('active');btn.classList.add('active');if(id==='indicadores')rI();}
 function stab(pg,sub,btn){document.querySelectorAll('#page-'+pg+' .tbb').forEach(b=>b.classList.remove('act'));document.querySelectorAll('#page-'+pg+' .sp2').forEach(p=>p.classList.remove('act'));document.getElementById('sp-'+pg+'-'+sub).classList.add('act');btn.classList.add('act');if(sub==='pc')rCons();}
@@ -1003,8 +1087,9 @@ function rA(){
   const sc=document.getElementById('sca');
   if(sc)sc.innerHTML=`<div class="sc"><div class="scl">Total</div><div class="scv">${all.length}</div></div><div class="sc sc-ok"><div class="scl">Locados</div><div class="scv" style="color:#004042">${all.filter(a=>a.status==='locado').length}</div></div><div class="sc sc-wa"><div class="scl">Manutenção</div><div class="scv" style="color:#F37021">${all.filter(a=>a.status==='manutenção').length}</div></div><div class="sc"><div class="scl">Reserva</div><div class="scv" style="color:#5B9BD5">${all.filter(a=>a.status==='reserva dedicada'||a.status==='reserva sinistro').length}</div></div><div class="sc"><div class="scl">Disponível</div><div class="scv">${all.filter(a=>a.status==='disponível').length}</div></div>`;
   const tb=document.getElementById('tba');if(!tb)return;
-  if(!eq.length){tb.innerHTML='<tr><td colspan="24" style="text-align:center;padding:24px;color:var(--text3)">Nenhum ativo encontrado</td></tr>';return;}
-  tb.innerHTML=eq.map(a=>{
+  const eqS=applySort(eq);
+  if(!eqS.length){tb.innerHTML='<tr><td colspan="24" style="text-align:center;padding:24px;color:var(--text3)">Nenhum ativo encontrado</td></tr>';return;}
+  tb.innerHTML=eqS.map(a=>{
     const c=cs.find(x=>x.id===a.contractId);const fin=gEF(a);
     const m1=isM1(c,a);const fxKey=a.id+'-fx';const fxOpen=fxO===fxKey;
     const fxL=fin.faixas?.length===1?'1 faixa':`${fin.faixas?.length||0} faixas`;
@@ -1084,8 +1169,18 @@ function rC(){
           <div class="sl" style="margin:0">Ativos vinculados</div>
           <button class="btn btn-sm" onclick="openVincular('${c.id}')"><i class="ti ti-link"></i> Vincular ativo</button>
         </div>
-        <div class="tw"><table><thead><tr><th>Ativo</th><th>Equipamento</th><th>Tipo</th><th>Status</th><th>SLA</th><th>Mensalidade</th><th>Franquia</th><th>Mobilização</th><th></th></tr></thead><tbody>
-          ${cAtivos.map(a=>`<tr>
+        <div class="tw"><table><thead><tr>
+            <th class="sortable" onclick="sortCC('${c.id}','ativo',this)">Ativo<span class="si"></span></th>
+            <th class="sortable" onclick="sortCC('${c.id}','equipamento',this)">Equipamento<span class="si"></span></th>
+            <th>Tipo</th>
+            <th class="sortable" onclick="sortCC('${c.id}','status',this)">Status<span class="si"></span></th>
+            <th>SLA</th>
+            <th class="sortable" onclick="sortCC('${c.id}','mensalidade',this)">Mensalidade<span class="si"></span></th>
+            <th>Franquia</th>
+            <th class="sortable" onclick="sortCC('${c.id}','dataMob',this)">Mobilização<span class="si"></span></th>
+            <th></th>
+          </tr></thead><tbody>
+          ${applySortCC(cAtivos,sortCC_state['${c.id}']||{col:'ativo',dir:'asc'}).map(a=>`<tr>
             <td style="font-weight:700;color:var(--text)">${a.ativo}</td>
             <td>${a.equipamento||'-'}</td>
             <td><span class="badge bgr">${a.tipo||'-'}</span></td>
