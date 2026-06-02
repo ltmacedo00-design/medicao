@@ -1616,7 +1616,8 @@ function bCR(sYM){
       const prevMens=(isFR?fin.precoFR:fin.mensalidade)*prop;
       const mensFechada=med.hFim!=null?(isFR?fin.precoFR:fin.mensalidade)*(med.prop??1):null;
       const horas=med.hFim!=null?Math.max(0,(med.hFim||0)-(med.hIni||0)):null;
-      const excVal=horas!=null&&!fin.franquiaLivre?cExc(fin.faixas,fin.franquia*(med.prop??1),horas):null;
+      const deveExcCR=!fin.franquiaLivre&&!fin.porHora&&deveCobrarExc(fin.perExc,fin.ultCobrExc,sYM);
+      const excVal=horas!=null&&deveExcCR?cExc(fin.faixas,fin.franquia*(med.prop??1),horas):null;
       const totBM=mensFechada!=null?(mensFechada+(excVal||0)-(med.descCom||0)-(med.descOp||0)):null;
       // Pre-fill dates for display (same logic as BM modal)
       const pf2=preFillDates(a,c,sYM);
@@ -2921,7 +2922,8 @@ function gerarPDFBM(bmId){
     const mens=(isFR?fin.precoFR:fin.mensalidade)*prop;
     const horas=med.hFim!=null?Math.max(0,(med.hFim||0)-(med.hIni||0)):null;
     const fP=fin.franquiaLivre?null:Math.round(fin.franquia*prop*10)/10;
-    const eH=horas!=null&&fP!=null?Math.max(0,horas-fP):null;
+    const deveExcPDF=!fin.franquiaLivre&&!fin.porHora&&deveCobrarExc(fin.perExc,fin.ultCobrExc,b.competencia);
+    const eH=horas!=null&&fP!=null&&deveExcPDF?Math.max(0,horas-fP):null;
     const eV=eH!=null&&eH>0?cExc(fin.faixas,fP,horas):0;
     const descCom=med.descCom||0;const descOp=med.descOp||0;
     return`<tr>
