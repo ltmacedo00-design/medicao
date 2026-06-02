@@ -666,7 +666,7 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
     <!-- KANBAN -->
     <div id="page-kanban" class="page">
       <div class="topbar">
-        <div class="topbar-left"><div class="mn"><button onclick="chM('kanban',-1)"><i class="ti ti-chevron-left"></i></button><div class="mnl" id="kml"></div><button onclick="chM('kanban',1)"><i class="ti ti-chevron-right"></i></button></div><div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Buscar contrato, cliente..." id="sk" oninput="rK()"></div><select class="sel" id="kpf" onchange="rK()"><option value="">Todos os períodos</option><option value="1-20">Dia 1 ao 20</option><option value="21-20">Dia 21 ao 20</option><option value="1-30">Dia 1 ao 30</option><option value="1-31">Dia 1 ao 31</option></select><span id="kc" style="font-size:11px;color:var(--text3)"></span></div>
+        <div class="topbar-left"><div class="mn"><button onclick="chM('kanban',-1)"><i class="ti ti-chevron-left"></i></button><div class="mnl" id="kml"></div><button onclick="chM('kanban',1)"><i class="ti ti-chevron-right"></i></button></div><div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Buscar contrato, cliente..." id="sk" oninput="rK()"></div><select class="sel" id="kpf" onchange="rK()"><option value="">Todos os períodos</option></select><span id="kc" style="font-size:11px;color:var(--text3)"></span></div>
       </div>
       <div class="board" id="kb"></div>
     </div>
@@ -967,6 +967,48 @@ function applySortCC(arr,state){
   });
 }
 
+// ═══════════════ PRE-FILL BM DATES ═══════════════
+function preFillDates(a,c,bm){
+  // bm = competencia year-month string e.g. '2026-06'
+  const[by,bmm]=bm.split('-').map(Number);
+  const pi=c.periodoInicio||1,pf=c.periodoFim||30;
+  const m1=isM1(c,a);
+
+  // Determine the work period month
+  // M+1: work was done in previous month (bmm-1), billing in bmm
+  // Normal: work done in bmm
+  let workY=by,workM=bmm;
+  if(m1){workM=bmm-1;if(workM<1){workM=12;workY=by-1;}}
+
+  // Period start and end of work month
+  let pStart,pEnd;
+  if(pi<=pf){
+    pStart=new Date(workY,workM-1,pi);
+    pEnd=new Date(workY,workM-1,pf);
+  } else {
+    // Cross-month: start in prev month, end in work month
+    pStart=new Date(workY,workM-2,pi);
+    pEnd=new Date(workY,workM-1,pf);
+  }
+
+  // dataIni = max(pStart, dataMob)
+  let dataIni=pStart;
+  if(a.dataMob){
+    const mob=new Date(xlDate(String(a.dataMob)));
+    if(!isNaN(mob.getTime())&&mob>pStart)dataIni=mob;
+  }
+
+  // dataFim = min(pEnd, dataDesmob)
+  let dataFim=pEnd;
+  if(a.dataDesmob){
+    const des=new Date(xlDate(String(a.dataDesmob)));
+    if(!isNaN(des.getTime())&&des<pEnd)dataFim=des;
+  }
+
+  const fmt=d=>d.toISOString().slice(0,10);
+  return{dataIni:fmt(dataIni),dataFim:fmt(dataFim)};
+}
+
 // ═══════════════ NAVIGATION ═══════════════
 function goPage(id,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.getElementById('page-'+id).classList.add('active');btn.classList.add('active');if(id==='indicadores')rI();}
 function stab(pg,sub,btn){document.querySelectorAll('#page-'+pg+' .tbb').forEach(b=>b.classList.remove('act'));document.querySelectorAll('#page-'+pg+' .sp2').forEach(p=>p.classList.remove('act'));document.getElementById('sp-'+pg+'-'+sub).classList.add('act');btn.classList.add('act');if(sub==='pc')rCons();}
@@ -981,7 +1023,11 @@ function isFranqLivre(a){
 }
 function gEF(a){
   const livre=isFranqLivre(a);
-  return{sla:a.sla||'',mensalidade:a.mensalidade||0,franquia:livre?0:(parseFloat(a.franquia)||0),horaContratual:a.horaContratual||0,faixas:a.faixas||[{limite:null,preco:0}],franquiaReduzida:a.franquiaReduzida||false,mesesFR:a.mesesFR||[],precoFR:a.precoFR||0,perExc:a.perExc||'mensal',tipoExc:a.tipoExc||'mês a mês',ultCobrExc:a.ultCobrExc||'',m1Fixo:a.m1Fixo||false,franquiaLivre:livre};
+  const mens=parseFloat(a.mensalidade)||0;
+  const hc=parseFloat(a.horaContratual)||0;
+  // porHora=true when no mensalidade but has horaContratual
+  const porHora=mens===0&&hc>0;
+  return{sla:a.sla||'',mensalidade:mens,franquia:livre?0:(parseFloat(a.franquia)||0),horaContratual:hc,faixas:a.faixas||[{limite:null,preco:0}],franquiaReduzida:a.franquiaReduzida||false,mesesFR:a.mesesFR||[],precoFR:a.precoFR||0,perExc:a.perExc||'mensal',tipoExc:a.tipoExc||'mês a mês',ultCobrExc:a.ultCobrExc||'',m1Fixo:a.m1Fixo||false,franquiaLivre:livre,porHora};
 }
 function cExc(faixas,franquia,horas){
   const exc=Math.max(0,horas-franquia);if(exc===0)return 0;
@@ -1028,10 +1074,15 @@ function gBMS(bm){
     const med=bm.medicao?.[eid]||{};const p=med.prop??1;
     const a=ativos.find(x=>x.id===eid);if(!a)return;
     const fin=gEF(a);const fr=fin.franquiaReduzida&&fin.mesesFR.includes(m-1);
-    tM+=(fr?fin.precoFR:fin.mensalidade)*p;
-    // Franquia livre = sem excedente
-    if(!fin.franquiaLivre){
-      tE+=cExc(fin.faixas,fin.franquia*p,Math.max(0,(med.hFim||0)-(med.hIni||0)));
+    const horas=Math.max(0,(med.hFim||0)-(med.hIni||0));
+    if(fin.porHora){
+      // Billing = horaContratual * horas trabalhadas (no mensalidade, no excedente)
+      tM+=fin.horaContratual*horas;
+    } else {
+      tM+=(fr?fin.precoFR:fin.mensalidade)*p;
+      if(!fin.franquiaLivre){
+        tE+=cExc(fin.faixas,fin.franquia*p,horas);
+      }
     }
     tDC+=med.descCom||0;tDO+=med.descOp||0;
   });
@@ -1338,10 +1389,21 @@ function rP(){
       const prop=calcPropMob(a,c,y,m);
       if(prop===0)return;
       const isFR=fin.franquiaReduzida&&fin.mesesFR.includes(m-1);
-      const bv=isFR?fin.precoFR:fin.mensalidade;
-      const val=bv*prop;
+      let bv,val;
+      if(fin.porHora){
+        // porHora: no fixed mensalidade — show horaContratual as rate, value=0 until hours filled
+        bv=fin.horaContratual;
+        // Try to get value from existing BM
+        const bmExist=bs.find(b=>b.contractId===c.id&&b.competencia===cur);
+        const medE=bmExist?.medicao?.[a.id];
+        const horasE=medE?.hFim!=null?Math.max(0,(medE.hFim||0)-(medE.hIni||0)):null;
+        val=horasE!=null?fin.horaContratual*horasE:0;
+      } else {
+        bv=isFR?fin.precoFR:fin.mensalidade;
+        val=isNaN(bv*prop)?0:bv*prop;
+      }
       const ek=`${c.id}-${a.id}-${cur}`;const ed=me[ek];
-      items.push({...a,contractId:c.id,isFR,bv,prop,valor:ed!=null?ed:val,editedManual:ed!=null,ek,isM1:isM1(c,a)});
+      items.push({...a,contractId:c.id,isFR,bv,prop,valor:ed!=null?ed:val,editedManual:ed!=null,ek,isM1:isM1(c,a),porHora:fin.porHora});
     });
     if(items.length)grupos.push({c,items});
   });
@@ -1597,15 +1659,29 @@ function openBM(id){
   const isEd=b.status===SMON;const isNF=b.status===SFAT;
   const eBlocks=(b.equipIds||[]).map(eid=>{
     const a=ativos.find(x=>x.id===eid);if(!a)return'';
-    const med=b.medicao?.[eid]||{};const fin=gEF(a);
+    const medRaw=b.medicao?.[eid]||{};
+    const fin=gEF(a);
+    // Pre-fill dates if not yet set
+    const pf2=preFillDates(a,c,b.competencia);
+    const med={dataIni:pf2.dataIni,dataFim:pf2.dataFim,...medRaw};
+    // Auto-save pre-filled dates if BM has no medicao yet
+    if(!b.medicao?.[eid]?.dataIni){
+      if(!b.medicao)b.medicao={};
+      if(!b.medicao[eid])b.medicao[eid]={};
+      b.medicao[eid].dataIni=pf2.dataIni;
+      b.medicao[eid].dataFim=pf2.dataFim;
+      const propPF=calcPropDatas(pf2.dataIni,pf2.dataFim,c.periodoInicio,c.periodoFim);
+      b.medicao[eid].prop=propPF;
+      autoSaveBM(b.id);
+    }
     const isFR=fin.franquiaReduzida&&fin.mesesFR.includes(bm-1);
     // Auto-prop from dates
     const propAuto=med.dataIni&&med.dataFim?calcPropDatas(med.dataIni,med.dataFim,c.periodoInicio,c.periodoFim):null;
     const prop=med.prop??propAuto??1;
-    const mens=(isFR?fin.precoFR:fin.mensalidade)*prop;
+    const mens=fin.porHora?0:(isFR?fin.precoFR:fin.mensalidade)*prop;
     const horas=Math.max(0,(med.hFim||0)-(med.hIni||0));
-    const fP=fin.franquiaLivre?0:Math.round(fin.franquia*prop*10)/10;
-    const eH=Math.max(0,horas-fP);const eV=cExc(fin.faixas,fP,horas);
+    const fP=fin.franquiaLivre||fin.porHora?0:Math.round(fin.franquia*prop*10)/10;
+    const eH=Math.max(0,horas-fP);const eV=fin.porHora?0:cExc(fin.faixas,fP,horas);
     if(isEd)return`<div class="eb">
       <div class="ebt">
         <span><i class="ti ti-tool" style="margin-right:5px;vertical-align:-1px;color:#004042"></i>${a.ativo} — ${a.equipamento}</span>
@@ -1627,14 +1703,16 @@ function openBM(id){
         </div>
       </div>
       <div class="cb2" id="calc-${eid}">
-        <div class="cr"><span>Mensalidade base</span><span style="color:var(--text3)">${f(isFR?fin.precoFR:fin.mensalidade)}</span></div>
-        <div class="cr"><span>Mensalidade proporcional (${Math.round(prop*100)}%)</span><span style="font-weight:700">${f(mens)}</span></div>
-        ${fin.franquiaLivre
-          ?`<div class="cr"><span>Franquia</span><span style="color:#2A8C6E;font-weight:700">Livre — sem cobrança de excedente</span></div>`
-          :`<div class="cr"><span>Horas trabalhadas</span><span>${horas}h</span></div>
-           <div class="cr"><span>Franquia proporcional</span><span>${fP}h</span></div>
-           <div class="cr"><span>Horas excedentes</span><span>${eH>0?eH+'h':'−'}</span></div>
-           ${eV>0?'<div class="cr"><span>Valor excedente</span><span style="color:#F37021">'+f(eV)+'</span></div>':''}`}
+        ${fin.porHora
+          ?`<div class="cr"><span>Modelo de cobrança</span><span class="badge ba">Por hora</span></div>
+            <div class="cr"><span>Valor hora contratual</span><span style="color:var(--text3)">${f(fin.horaContratual)}/h</span></div>
+            <div class="cr"><span>Horas trabalhadas</span><span>${horas}h</span></div>
+            <div class="cr"><span style="font-weight:700">Valor a cobrar</span><span style="font-weight:700;color:#F37021">${f(fin.horaContratual*horas)}</span></div>`
+          :`<div class="cr"><span>Mensalidade base</span><span style="color:var(--text3)">${f(isFR?fin.precoFR:fin.mensalidade)}</span></div>
+            <div class="cr"><span>Mensalidade proporcional (${Math.round(prop*100)}%)</span><span style="font-weight:700">${f(mens)}</span></div>
+            ${fin.franquiaLivre
+              ?'<div class="cr"><span>Franquia</span><span style="color:#2A8C6E;font-weight:700">Livre — sem cobrança de excedente</span></div>'
+              :'<div class="cr"><span>Horas trabalhadas</span><span>'+horas+'h</span></div><div class="cr"><span>Franquia proporcional</span><span>'+fP+'h</span></div><div class="cr"><span>Horas excedentes</span><span>'+(eH>0?eH+'h':'−')+'</span></div>'+(eV>0?'<div class="cr"><span>Valor excedente</span><span style="color:#F37021">'+f(eV)+'</span></div>':'')}`}
       </div>
       <div class="ds" style="margin-top:10px">
         <div class="dst"><i class="ti ti-tag" style="margin-right:4px;vertical-align:-1px"></i>Descontos do equipamento</div>
@@ -2465,7 +2543,7 @@ function gerarPDFBM(bmId){
   </style></head><body>
   <div class="header">
     <div class="brand">
-      <div class="brand-name"><span>Mills</span> Rental</div>
+      <div class="brand-name"><span>Mills</span></div>
       <div class="brand-sub">Boletim de Medição</div>
     </div>
     <div class="doc-info">
@@ -2683,6 +2761,15 @@ function popCF(){
   if(tdrop&&!tdrop.children.length){
     const tipos=['','Equipamento','Componente','Implemento','Serviço'];
     tdrop.innerHTML=tipos.map(t=>`<div class="combo-opt" onclick="selCombo('fta-txt','fta','${t}','rA')">${t||'Todos os tipos'}</div>`).join('');
+  }
+  // Populate kanban period filter from actual contracts
+  const kpf=document.getElementById('kpf');
+  if(kpf){
+    const cur=kpf.value;
+    const periods=new Set();
+    cs.forEach(c=>{if(c.periodoInicio&&c.periodoFim)periods.add(`${c.periodoInicio}-${c.periodoFim}`);});
+    kpf.innerHTML='<option value="">Todos os períodos</option>'+
+      [...periods].sort().map(p=>{const[pi,pf]=p.split('-');return`<option value="${p}" ${cur===p?'selected':''}>Dia ${pi} ao ${pf}</option>`;}).join('');
   }
 }
 
