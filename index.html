@@ -1089,10 +1089,20 @@ function calcPropMob(a,c,year,month,m1Override){
     pEnd=new Date(wy,wm-1,pf);
   }
 
-  if(mob<=pStart)return 1;  // mobilized before period → full month
-  if(mob>pEnd)return 0;      // mobilized after period end → not billed
+  // dataIni = max(pStart, dataMob)
+  const effStart=mob>pStart?mob:pStart;
+  if(effStart>pEnd)return 0; // mobilized after period end → not billed
+
+  // dataFim = min(pEnd, dataDesmob)
+  let effEnd=pEnd;
+  if(a.dataDesmob){
+    const des=new Date(xlDate(String(a.dataDesmob||'')));
+    if(!isNaN(des.getTime())&&des<pEnd)effEnd=des;
+  }
+  if(effEnd<effStart)return 0; // demobilized before mobilization in this period
+
   const total=Math.round((pEnd-pStart)/86400000)+1;
-  const work=Math.round((pEnd-mob)/86400000)+1;
+  const work=Math.round((effEnd-effStart)/86400000)+1;
   return Math.round(Math.min(1,Math.max(0,work/total))*1000)/1000;
 }
 function gBMS(bm){
