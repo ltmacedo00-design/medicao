@@ -2153,15 +2153,37 @@ function anexarDesc(event,bmId,eid,tipo){
   };
   reader.readAsDataURL(file);
 }
+function verAnexoInline(data,type){
+  try{
+    const arr=data.split(',');
+    const mime=arr[0].match(/:(.*?);/)[1];
+    const bstr=atob(arr[1]);
+    const u8arr=new Uint8Array(bstr.length);
+    for(let i=0;i<bstr.length;i++)u8arr[i]=bstr.charCodeAt(i);
+    const blob=new Blob([u8arr],{type:mime});
+    const url=URL.createObjectURL(blob);
+    window.open(url,'_blank');
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }catch(e){window.open(data,'_blank');}
+}
 function verAnexo(bmId,eid,tipo){
   const b=bs.find(x=>x.id===bmId);
   const anexo=b?.medicao?.[eid]?.['anexoDesc'+tipo];
   if(!anexo){alert('Nenhum anexo encontrado.');return;}
-  if(anexo.type.startsWith('image/')){
-    const w=window.open('','_blank');
-    w.document.write('<html><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="'+anexo.data+'" style="max-width:100%;max-height:100vh"></body></html>');
-    w.document.close();
-  } else {
+  // Convert base64 to Blob then open as blob URL (works in all modern browsers)
+  try{
+    const arr=anexo.data.split(',');
+    const mime=arr[0].match(/:(.*?);/)[1];
+    const bstr=atob(arr[1]);
+    const u8arr=new Uint8Array(bstr.length);
+    for(let i=0;i<bstr.length;i++)u8arr[i]=bstr.charCodeAt(i);
+    const blob=new Blob([u8arr],{type:mime});
+    const url=URL.createObjectURL(blob);
+    window.open(url,'_blank');
+    // Revoke after delay to free memory
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }catch(e){
+    // Fallback: trigger download
     const a=document.createElement('a');a.href=anexo.data;a.download=anexo.name;a.click();
   }
 }
@@ -2851,7 +2873,7 @@ function renderApproverView(){
       const anexo=_user.role==='op'?(med.anexoDescOp||null):(med.anexoDescCom||null);
       if(!dv)return'';
       const anexoHTML=anexo?`<div style="margin-top:6px">${anexo.type.startsWith('image/')?
-        `<img src="${anexo.data}" style="max-width:180px;max-height:120px;border-radius:4px;border:1px solid var(--border);cursor:pointer" onclick="window.open('${anexo.data}','_blank')" title="Clique para abrir">`
+        `<img src="${anexo.data}" style="max-width:180px;max-height:120px;border-radius:4px;border:1px solid var(--border);cursor:pointer" onclick="verAnexoInline('${anexo.data}','${anexo.type}')" title="Clique para abrir" style="cursor:pointer">`
         :`<a href="${anexo.data}" download="${anexo.name}" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;background:var(--bg2);border:1px solid var(--border);font-size:11px;color:var(--text2);text-decoration:none"><i class="ti ti-file-download"></i> ${anexo.name}</a>`
       }</div>`:'';
       return`<tr style="font-size:11px;vertical-align:top">
