@@ -1706,8 +1706,8 @@ function bCR(sYM){
 function rCRws(tb,rows){
   if(!tb)return;
   if(!rows.length){tb.innerHTML='<tr><td colspan="20" style="text-align:center;padding:24px;color:var(--text3)">Nenhum dado</td></tr>';return;}
-  let t={p:0,m:0,e:0,dC:0,dO:0,fat:0};
-  rows.forEach(r=>{t.p+=r.prevMens||0;t.m+=r.mensFechada||0;t.e+=r.vE||0;t.dC+=r.dC||0;t.dO+=r.dO||0;if(r.isFat)t.fat+=r.tot||0;});
+  let t={p:0,m:0,e:0,dC:0,dO:0,fat:0,ef:0};
+  rows.forEach(r=>{t.p+=r.prevMens||0;t.m+=r.mensFechada||0;t.e+=r.vE||0;t.dC+=r.dC||0;t.dO+=r.dO||0;if(r.isFat){t.fat+=r.tot||0;t.ef+=r.vE||0;}});
   const aT=t.p>0&&t.fat>0?Math.round(t.fat/t.p*100):null;
   const aC=aT==null?'inherit':aT>=95?'#2A8C6E':aT>=80?'#F37021':'var(--red)';
   tb.innerHTML=rows.map(r=>{
@@ -1765,7 +1765,7 @@ function rCP(){
   const cnt=document.getElementById('cco');if(cnt)cnt.textContent=`${rows.length} linha${rows.length!==1?'s':''}`;
   let t={p:0,m:0,dC:0,dO:0,fat:0};rows.forEach(r=>{t.p+=r.prevMens||0;t.m+=r.mensFechada||0;t.dC+=r.dC||0;t.dO+=r.dO||0;if(r.isFat)t.fat+=r.tot||0;});
   const a=t.p>0&&t.fat>0?Math.round(t.fat/t.p*100):null;const ac=a==null?'inherit':a>=95?'#2A8C6E':a>=80?'#F37021':'var(--red)';
-  document.getElementById('scop').innerHTML=`<div class="sc"><div class="scl">Prev. mensalidade</div><div class="scv">${f(t.p)}</div></div><div class="sc"><div class="scl">Mensalidade fechada</div><div class="scv">${f(t.m)}</div></div><div class="sc sc-wa" style="padding:0;overflow:hidden"><div style="display:flex;height:100%"><div style="flex:1;padding:14px 12px;border-right:1px solid var(--border)"><div class="scl">Desc. Comercial</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dC)}</div></div><div style="flex:1;padding:14px 12px"><div class="scl">Desc. Operacional</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dO)}</div></div></div></div><div class="sc sc-ok"><div class="scl">Faturado</div><div class="scv" style="color:#004042">${f(t.fat)}</div></div><div class="sc ${a==null?'':a>=95?'sc-ok':a>=80?'sc-wa':'sc-er'}"><div class="scl">Performance</div><div class="scv" style="color:${ac}">${a!=null?a+'%':'−'}</div></div>`;
+  document.getElementById('scop').innerHTML=`<div class="sc"><div class="scl">Prev. mensalidade</div><div class="scv">${f(t.p)}</div></div><div class="sc"><div class="scl">Mensalidade fechada</div><div class="scv">${f(t.m)}</div></div>${t.ef>0?`<div class="sc"><div class="scl">Excedente faturado</div><div class="scv" style="color:#F37021">${f(t.ef)}</div></div>`:''}<div class="sc sc-wa" style="padding:0;overflow:hidden"><div style="display:flex;height:100%"><div style="flex:1;padding:14px 12px;border-right:1px solid var(--border)"><div class="scl">Desc. Comercial</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dC)}</div></div><div style="flex:1;padding:14px 12px"><div class="scl">Desc. Operacional</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dO)}</div></div></div></div><div class="sc sc-ok"><div class="scl">Faturado</div><div class="scv" style="color:#004042">${f(t.fat)}</div></div><div class="sc ${a==null?'':a>=95?'sc-ok':a>=80?'sc-wa':'sc-er'}"><div class="scl">Performance</div><div class="scv" style="color:${ac}">${a!=null?a+'%':'−'}</div></div>`;
   rCRws(document.getElementById('tbcp'),rows);
 }
 // ═══════════════ KANBAN ═══════════════
