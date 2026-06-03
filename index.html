@@ -699,7 +699,9 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
     <!-- KANBAN -->
     <div id="page-kanban" class="page">
       <div class="topbar">
-        <div class="topbar-left"><div class="mn"><button onclick="chM('kanban',-1)"><i class="ti ti-chevron-left"></i></button><div class="mnl" id="kml"></div><button onclick="chM('kanban',1)"><i class="ti ti-chevron-right"></i></button></div><div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Buscar contrato, cliente..." id="sk" oninput="rK()"></div><select class="sel" id="kpf" onchange="rK()"><option value="">Todos os períodos</option></select><span id="kc" style="font-size:11px;color:var(--text3)"></span></div>
+        <div class="topbar-left"><div class="mn"><button onclick="chM('kanban',-1)"><i class="ti ti-chevron-left"></i></button><div class="mnl" id="kml"></div><button onclick="chM('kanban',1)"><i class="ti ti-chevron-right"></i></button></div><div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Buscar contrato, cliente..." id="sk" oninput="rK()"></div><select class="sel" id="kpf" onchange="rK()"><option value="">Todos os períodos</option></select><span id="kc" style="font-size:11px;color:var(--text3)"></span>
+          <button class="btn btn-p btn-sm" onclick="openCriarBM()"><i class="ti ti-plus"></i> Criar BM manual</button>
+        </div>
       </div>
       <div class="board" id="kb"></div>
     </div>
@@ -1242,6 +1244,30 @@ function gBMS(bm){
   return{tM,tE,dC:tDC,dO:tDO,tot:tM+tE-tDC-tDO};
 }
 function cBMV(bm){const{tM,tE,dC,dO}=gBMS(bm);return tM+tE-dC-dO;}
+
+// Backlog value: use previsto (proportional) for unfilled BMs, actual if filled
+function cBLV(bm){
+  if(bm.valorFaturado)return bm.valorFaturado;
+  // Check if medicao has actual data (horímetros filled)
+  const hasMed=bm.medicao&&(bm.equipIds||[]).some(eid=>{
+    const med=bm.medicao[eid];return med&&(med.hFim!=null||med.prop!=null);
+  });
+  if(hasMed)return cBMV(bm); // use actual calculated value
+  // No medição filled — use previsto from calcPropMob
+  const c=cs.find(x=>x.id===bm.contractId);if(!c)return 0;
+  const[by,bm2]=bm.competencia.split('-').map(Number);
+  let total=0;
+  (bm.equipIds||[]).forEach(eid=>{
+    const a=ativos.find(x=>x.id===eid);if(!a)return;
+    const fin=gEF(a);if(!fin.mensalidade&&!fin.porHora)return;
+    const prop=calcPropMob(a,c,by,bm2,isM1(c,a));
+    if(prop===0)return;
+    const isFR=fin.franquiaReduzida&&fin.mesesFR.includes(bm2-1);
+    if(fin.porHora){total+=0;} // can't know hours yet
+    else{const bv=isFR?fin.precoFR:fin.mensalidade;const v=bv*prop;if(!isNaN(v))total+=v;}
+  });
+  return total;
+}
 function hExc(bm){
   if(!bm.medicao)return false;
   return(bm.equipIds||[]).some(eid=>{
@@ -1599,7 +1625,7 @@ function rP(){
   // BMs done (Faturado) this month
   const fatBMs=bs.filter(b=>b.competencia===cur&&b.status===SFAT);
   // Backlog: pending BMs from previous months
-  const bl=bs.filter(b=>b.competencia>='2026-06'&&b.competencia<cur&&b.status!==SFAT&&b.status!==SCAN);
+  const bl=bs.filter(b=>(b.manual||(b.competencia>='2026-06'))&&b.competencia<cur&&b.status!==SFAT&&b.status!==SCAN);
   // Build previsto groups by contract
   const grupos=[];
   cs.forEach(c=>{
@@ -1638,7 +1664,7 @@ function rP(){
   const qPf=(document.getElementById('spv')?.value||'').toLowerCase();
   const gruposFilt=qPf?grupos.filter(g=>g.c.nomeContrato.toLowerCase().includes(qPf)||g.c.nomeCliente.toLowerCase().includes(qPf)||(g.c.codCliente||'').toLowerCase().includes(qPf)):grupos;
   const tP=gruposFilt.reduce((s,g)=>s+g.items.reduce((ss,i)=>ss+i.valor,0),0);
-  const tB=bl.reduce((s,b)=>s+(b.valorFaturado||cBMV(b)),0);
+  const tB=bl.reduce((s,b)=>s+cBLV(b),0);
   const tF=fatBMs.reduce((s,b)=>s+(b.valorFaturado||cBMV(b)),0);
   const sc=document.getElementById('scp');
   if(sc)sc.innerHTML=`<div class="sc"><div class="scl">Previsto do mês</div><div class="scv">${f(tP+tB)}</div><div class="scs">incl. ${bl.length} backlog</div></div><div class="sc sc-er"><div class="scl">Backlog</div><div class="scv" style="color:var(--red)">${f(tB)}</div><div class="scs">${bl.length} BMs</div></div><div class="sc sc-ok"><div class="scl">Faturado no mês</div><div class="scv" style="color:#004042">${f(tF)}</div><div class="scs">${fatBMs.length} BMs</div></div><div class="sc"><div class="scl">A faturar</div><div class="scv" style="color:#004042">${f(Math.max(0,tP+tB-tF))}</div></div><div class="sc"><div class="scl">Contratos ativos</div><div class="scv">${cs.filter(c=>ativos.some(a=>a.contractId===c.id&&a.status==='locado')).length}</div></div>`;
@@ -1747,7 +1773,7 @@ function rK(){
   const pfVal=document.getElementById('kpf')?.value||'';
   const vis=bs.filter(b=>{
     const isCur=b.competencia===cur;
-    const isBL=b.competencia>='2026-06'&&b.competencia<cur&&b.status!==SFAT&&b.status!==SCAN;
+    const isBL=(b.manual||(b.competencia>='2026-06'))&&b.competencia<cur&&b.status!==SFAT&&b.status!==SCAN;
     if(!isCur&&!isBL)return false;
     const c=cs.find(x=>x.id===b.contractId);
     if(q&&!(c?.nomeContrato.toLowerCase().includes(q)||c?.nomeCliente.toLowerCase().includes(q)))return false;
@@ -1940,7 +1966,7 @@ async function confFat(bmId){
   b.nfExcData=document.getElementById('fm-ed')?.value||'';
   b.valorFaturado=cBMV(b);
   addHist(b,'NF registrada','','',`NF mens: ${b.nfMensNum||'−'} | Data: ${b.nfMensData||'−'}${b.nfExcNum?' | NF exc: '+b.nfExcNum:''}`);
-  closeFM();if(window._fmc)window._fmc();
+  const cb=window._fmc;closeFM();if(cb)cb();
 }
 // ═══════════════ BM MODAL ═══════════════
 function openBM(id){
@@ -2545,7 +2571,7 @@ function rI(){
     fBMs.forEach(b=>{fat+=(b.valorFaturado||cBMV(b));const{dC:bDC,dO:bDO}=gBMS(b);dC+=bDC;dO+=bDO;});
     // Backlog: only >= 2026-06
     const bl=bs.filter(b=>b.competencia>='2026-06'&&b.competencia<cYM&&b.status!==SFAT&&b.status!==SCAN)
-      .reduce((s,b)=>s+(b.valorFaturado||cBMV(b)),0);
+      .reduce((s,b)=>s+cBLV(b),0);
     // Retrabalho: over CLOSED BMs (Faturado) — how many had retrabalho
     const bmsFechados=allBMs.filter(b=>b.status===SFAT);
     const retr=allBMs.filter(b=>b.retrabalho).length;
@@ -3208,6 +3234,88 @@ function gerarPDFBM(bmId){
   w.document.write(html);
   w.document.close();
   setTimeout(()=>w.print(),800);
+}
+
+// ═══════════════ CRIAR BM MANUAL ═══════════════
+function openCriarBM(){
+  // Build month options: June 2026 to 3 months ahead
+  const today=new Date();
+  const months=[];
+  for(let i=-12;i<=3;i++){const r=aM(2026,6,i);months.push({y:r.y,m:r.m,v:ym(r.y,r.m)});}
+  const compAtual=ym(mo.kanban.y,mo.kanban.m);
+
+  const html=`<div class="modal" onclick="event.stopPropagation()" style="max-width:600px">
+    <div class="mh2"><span class="mht">Criar BM manual</span><button class="bti" onclick="closeMV()"><i class="ti ti-x"></i></button></div>
+    <div class="mbd">
+      <div class="ht"><i class="ti ti-info-circle"></i> Use para medições de meses anteriores ou BMs fora do fluxo automático. BMs de meses anteriores entrarão como backlog.</div>
+      <div class="g2" style="margin-bottom:12px">
+        <div class="ff">
+          <label class="fl">Contrato *</label>
+          <select id="cbm-c" onchange="carregarAtivosBM()">
+            <option value="">— Selecione o contrato —</option>
+            ${cs.map(c=>`<option value="${c.id}">${c.nomeContrato} — ${c.nomeCliente}</option>`).join('')}
+          </select>
+        </div>
+        <div class="ff">
+          <label class="fl">Competência (mês de referência) *</label>
+          <select id="cbm-comp">
+            ${months.map(({y,m,v})=>`<option value="${v}" ${v===compAtual?'selected':''}>${ML[m-1]} ${y}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="ff" style="margin-bottom:12px">
+        <label class="fl">Ativos do contrato (selecione os que farão parte deste BM)</label>
+        <div id="cbm-ativos" style="border:1px solid var(--border);border-radius:var(--r);padding:10px;min-height:60px;background:var(--bg);color:var(--text3);font-size:11px">
+          Selecione um contrato para listar os ativos
+        </div>
+      </div>
+    </div>
+    <div class="mft">
+      <div></div>
+      <div style="display:flex;gap:7px">
+        <button class="btn" onclick="closeMV()">Cancelar</button>
+        <button class="btn btn-p" onclick="criarBMManual()"><i class="ti ti-plus"></i> Criar BM</button>
+      </div>
+    </div>
+  </div>`;
+  const el=document.getElementById('mvm');el.innerHTML=html;el.classList.remove('dn');el.onclick=()=>closeMV();
+}
+
+function carregarAtivosBM(){
+  const cid=document.getElementById('cbm-c')?.value;
+  const container=document.getElementById('cbm-ativos');
+  if(!container)return;
+  if(!cid){container.innerHTML='<span style="color:var(--text3)">Selecione um contrato para listar os ativos</span>';return;}
+  const cAtivos=ativos.filter(a=>a.contractId===cid&&a.status!=='disponível'&&a.status!=='venda');
+  if(!cAtivos.length){container.innerHTML='<span style="color:var(--text3)">Nenhum ativo vinculado a este contrato</span>';return;}
+  container.innerHTML=cAtivos.map(a=>`<label style="display:flex;align-items:center;gap:8px;padding:6px;border-radius:4px;cursor:pointer;margin-bottom:2px">
+    <input type="checkbox" value="${a.id}" checked style="width:14px;height:14px;accent-color:#004042">
+    <span style="font-weight:600;color:var(--text)">${a.ativo}</span>
+    <span style="color:var(--text2)">${a.equipamento||''}</span>
+    <span class="badge ${a.status==='locado'?'bg':'bgr'}" style="margin-left:auto">${a.status}</span>
+  </label>`).join('');
+}
+
+async function criarBMManual(){
+  const cid=document.getElementById('cbm-c')?.value;
+  const comp=document.getElementById('cbm-comp')?.value;
+  if(!cid){alert('Selecione um contrato.');return;}
+  if(!comp){alert('Selecione a competência.');return;}
+  const sels=[...document.querySelectorAll('#cbm-ativos input[type=checkbox]:checked')].map(el=>el.value);
+  if(!sels.length){alert('Selecione ao menos um ativo.');return;}
+  const[by,bm2]=comp.split('-').map(Number);
+  const nb={
+    id:uid(),contractId:cid,competencia:comp,
+    status:'Ag. Fechamento',equipIds:sels,
+    medicao:{},manual:true,
+    historico:[{ts:new Date().toISOString(),usuario:_user?.nome||'Sistema',tipo:'criação',de:'',para:'Ag. Fechamento',obs:`BM criado manualmente — Competência ${ML[bm2-1]}/${by}`}],
+    dataEntrada:new Date().toISOString()
+  };
+  bs.push(nb);await sB(nb);
+  lsSave();closeMV();
+  // Navigate to competence month in kanban
+  mo.kanban={y:by,m:bm2};
+  rK();
 }
 
 // ═══════════════ MIGRATION / UTILS ═══════════════
