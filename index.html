@@ -3251,9 +3251,11 @@ function openCriarBM(){
       <div class="g2" style="margin-bottom:12px">
         <div class="ff">
           <label class="fl">Contrato *</label>
-          <select id="cbm-c" onchange="carregarAtivosBM()">
-            <option value="">— Selecione o contrato —</option>
-            ${cs.map(c=>`<option value="${c.id}">${c.nomeContrato} — ${c.nomeCliente}</option>`).join('')}
+          <input type="text" id="cbm-c-search" placeholder="Buscar contrato ou cliente..." autocomplete="off"
+            oninput="filtrarContratosBM()" style="margin-bottom:4px">
+          <select id="cbm-c" size="6" style="height:auto" onchange="carregarAtivosBM()">
+            <option value="">— Selecione —</option>
+            ${[...cs].sort((a,b)=>a.nomeContrato.localeCompare(b.nomeContrato,'pt-BR')).map(c=>`<option value="${c.id}">${c.nomeContrato} — ${c.nomeCliente}</option>`).join('')}
           </select>
         </div>
         <div class="ff">
@@ -3281,6 +3283,16 @@ function openCriarBM(){
   const el=document.getElementById('mvm');el.innerHTML=html;el.classList.remove('dn');el.onclick=()=>closeMV();
 }
 
+function filtrarContratosBM(){
+  const q=(document.getElementById('cbm-c-search')?.value||'').toLowerCase();
+  const sel=document.getElementById('cbm-c');if(!sel)return;
+  const sorted=[...cs].sort((a,b)=>a.nomeContrato.localeCompare(b.nomeContrato,'pt-BR'));
+  sel.innerHTML='<option value="">— Selecione —</option>'+
+    sorted.filter(c=>!q||c.nomeContrato.toLowerCase().includes(q)||c.nomeCliente.toLowerCase().includes(q))
+      .map(c=>`<option value="${c.id}">${c.nomeContrato} — ${c.nomeCliente}</option>`).join('');
+  // Reset ativos list if selection cleared
+  if(!sel.value)document.getElementById('cbm-ativos').innerHTML='<span style="color:var(--text3)">Selecione um contrato para listar os ativos</span>';
+}
 function carregarAtivosBM(){
   const cid=document.getElementById('cbm-c')?.value;
   const container=document.getElementById('cbm-ativos');
