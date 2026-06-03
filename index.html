@@ -603,6 +603,7 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
         </div>
         <div style="display:flex;gap:6px">
           <input type="file" id="imp" accept=".xlsx,.csv" class="dn" onchange="impFile(this)">
+          <button class="btn" onclick="exportarAtivos()"><i class="ti ti-table-export"></i> Exportar Excel</button>
           <button class="btn btn-p" onclick="openEM(null)"><i class="ti ti-plus"></i> Novo ativo</button>
         </div>
       </div>
@@ -632,12 +633,28 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
       <div class="topbar">
         <div class="topbar-left">
           <div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Filtrar contrato, cliente..." id="sc3" oninput="rC()" style="width:260px"></div>
+          <select class="sel" id="c-sort" onchange="rC()">
+            <option value="">Ordenar por...</option>
+            <option value="nome-asc">Nome A→Z</option>
+            <option value="nome-desc">Nome Z→A</option>
+            <option value="valor-desc">Maior valor</option>
+            <option value="valor-asc">Menor valor</option>
+            <option value="ativos-desc">Mais ativos</option>
+            <option value="ativos-asc">Menos ativos</option>
+            <option value="periodo">Período de fechamento</option>
+          </select>
+          <select class="sel" id="c-filter-m1" onchange="rC()">
+            <option value="">M e M+1</option>
+            <option value="m1">Só M+1</option>
+            <option value="m">Só M</option>
+          </select>
           <span id="cc" style="font-size:11px;color:var(--text3)"></span>
           <span id="cc-ativos" style="font-size:11px;color:#2A8C6E;font-weight:600"></span>
           <button class="btn btn-sm" id="cc-diff-btn" style="display:none" onclick="mostrarSemBM()"><i class="ti ti-alert-triangle"></i> Ver sem BM</button>
         </div>
         <button class="btn btn-p" onclick="openCM(null)"><i class="ti ti-plus"></i> Novo contrato</button>
       </div>
+      <div id="c-kpi" class="sc-row" style="grid-template-columns:repeat(2,1fr);max-width:500px;margin-bottom:14px"></div>
       <div id="cl"></div>
     </div>
     <!-- PREVISTO -->
@@ -656,7 +673,7 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
           <div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Filtrar contrato, cliente..." id="scons" oninput="rCons()" style="width:220px"></div>
         </div></div>
         <div id="scc" class="sc-row sc-5"></div>
-        <div class="tw mh"><table><thead><tr><th>Contrato</th><th>Nº contrato</th><th>Cliente</th><th>SAP</th><th>Ativo</th><th>Equipamento</th><th>Tipo</th><th>M/M+1</th><th>Dt. início</th><th>Dt. fim</th><th>Prop.</th><th>Prev. mens.</th><th>Mens. fechada</th><th>Hrs exc.</th><th>Valor exc.</th><th class="sc2">Desc. com.</th><th>Desc. op.</th><th class="sc2">Total BM</th><th>Aderência</th><th class="sc2">Nº NF Mens.</th><th>Data NF Mens.</th><th class="sc2">Nº NF Exc.</th><th>Data NF Exc.</th><th class="sc2">Status BM</th></tr></thead><tbody id="tbc"></tbody></table></div>
+        <div class="tw mh"><table><thead><tr><th>Contrato</th><th>Nº contrato</th><th>Cliente</th><th>SAP</th><th>Ativo</th><th>Equipamento</th><th>Tipo</th><th>M/M+1</th><th>Dt. início</th><th>Dt. fim</th><th>Prop.</th><th>Prev. mens.</th><th>Mens. fechada</th><th>Hrs exc.</th><th>Valor exc.</th><th class="sc2">Desc. com.</th><th>Desc. op.</th><th class="sc2">Total BM</th><th>Performance</th><th class="sc2">Nº NF Mens.</th><th>Data NF Mens.</th><th class="sc2">Nº NF Exc.</th><th>Data NF Exc.</th><th class="sc2">Status BM</th></tr></thead><tbody id="tbc"></tbody></table></div>
       </div>
     </div>
     <!-- CONSOLIDADO -->
@@ -677,7 +694,7 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
         </div>
       </div>
       <div id="scop" class="sc-row sc-5"></div>
-      <div class="tw mh"><table><thead><tr><th>Contrato</th><th>Nº contrato</th><th>Cliente</th><th>SAP</th><th>Ativo</th><th>Equipamento</th><th>Tipo</th><th>M/M+1</th><th>Dt. início</th><th>Dt. fim</th><th>Prop.</th><th>Prev. mens.</th><th>Mens. fechada</th><th>Hrs exc.</th><th>Valor exc.</th><th class="sc2">Desc. com.</th><th>Desc. op.</th><th class="sc2">Total BM</th><th>Aderência</th><th class="sc2">Nº NF Mens.</th><th>Data NF Mens.</th><th class="sc2">Nº NF Exc.</th><th>Data NF Exc.</th><th class="sc2">Status BM</th></tr></thead><tbody id="tbcp"></tbody></table></div>
+      <div class="tw mh"><table><thead><tr><th>Contrato</th><th>Nº contrato</th><th>Cliente</th><th>SAP</th><th>Ativo</th><th>Equipamento</th><th>Tipo</th><th>M/M+1</th><th>Dt. início</th><th>Dt. fim</th><th>Prop.</th><th>Prev. mens.</th><th>Mens. fechada</th><th>Hrs exc.</th><th>Valor exc.</th><th class="sc2">Desc. com.</th><th>Desc. op.</th><th class="sc2">Total BM</th><th>Performance</th><th class="sc2">Nº NF Mens.</th><th>Data NF Mens.</th><th class="sc2">Nº NF Exc.</th><th>Data NF Exc.</th><th class="sc2">Status BM</th></tr></thead><tbody id="tbcp"></tbody></table></div>
     </div>
     <!-- KANBAN -->
     <div id="page-kanban" class="page">
@@ -1335,8 +1352,37 @@ document.addEventListener('click',e=>{if(fxO&&!e.target.closest('[onclick*="tFx"
 // ═══════════════ RENDER CONTRATOS ═══════════════
 function rC(){
   const q=(document.getElementById('sc3')?.value||'').toLowerCase();
-  const filtered=cs.filter(c=>!q||[c.nomeContrato,c.nomeCliente,c.nroContrato,c.codCliente].some(v=>v?.toLowerCase().includes(q)));
+  const sortV=document.getElementById('c-sort')?.value||'';
+  const filterM1=document.getElementById('c-filter-m1')?.value||'';
+  let filtered=cs.filter(c=>!q||[c.nomeContrato,c.nomeCliente,c.nroContrato,c.codCliente].some(v=>v?.toLowerCase().includes(q)));
+  if(filterM1==='m1')filtered=filtered.filter(c=>isM1(c,null));
+  if(filterM1==='m')filtered=filtered.filter(c=>!isM1(c,null));
+  // Apply sort
+  filtered=[...filtered].sort((a,b)=>{
+    const aAtivos=ativos.filter(x=>x.contractId===a.id);
+    const bAtivos=ativos.filter(x=>x.contractId===b.id);
+    const aV=aAtivos.filter(x=>x.status==='locado').reduce((s,x)=>s+(x.mensalidade||0),0);
+    const bV=bAtivos.filter(x=>x.status==='locado').reduce((s,x)=>s+(x.mensalidade||0),0);
+    switch(sortV){
+      case 'nome-asc':return a.nomeContrato.localeCompare(b.nomeContrato,'pt-BR');
+      case 'nome-desc':return b.nomeContrato.localeCompare(a.nomeContrato,'pt-BR');
+      case 'valor-desc':return bV-aV;
+      case 'valor-asc':return aV-bV;
+      case 'ativos-desc':return bAtivos.length-aAtivos.length;
+      case 'ativos-asc':return aAtivos.length-bAtivos.length;
+      case 'periodo':return (a.periodoFim||0)-(b.periodoFim||0);
+      default:return 0;
+    }
+  });
   const el=document.getElementById('cl');const cnt=document.getElementById('cc');
+  // Total value KPI
+  const totalMens=ativos.filter(a=>a.status==='locado'&&a.contractId).reduce((s,a)=>s+(a.mensalidade||0),0);
+  const totalAtivosLoc=ativos.filter(a=>a.status==='locado').length;
+  const kpiEl=document.getElementById('c-kpi');
+  if(kpiEl)kpiEl.innerHTML=`
+    <div class="sc sc-ok"><div class="scl">Total mensalidade</div><div class="scv" style="color:#004042">${f(totalMens)}</div><div class="scs">${cs.length} contratos · ${totalAtivosLoc} locados</div></div>
+    <div class="sc"><div class="scl">Filtrados</div><div class="scv">${filtered.length}</div><div class="scs">de ${cs.length} contratos</div></div>
+  `;
   const cntAt=document.getElementById('cc-ativos');
   if(cnt)cnt.textContent=`${filtered.length} de ${cs.length} contrato${cs.length!==1?'s':''}`;
   // Active contract = has at least one locado ativo
@@ -1652,7 +1698,7 @@ function rCons(){
   let t={p:0,m:0,dC:0,dO:0,fat:0};rows.forEach(r=>{t.p+=r.prevMens||0;t.m+=r.mensFechada||0;t.dC+=r.dC||0;t.dO+=r.dO||0;if(r.isFat)t.fat+=r.tot||0;});
   const a=t.p>0&&t.fat>0?Math.round(t.fat/t.p*100):null;
   const sc=document.getElementById('scc');
-  if(sc)sc.innerHTML=`<div class="sc"><div class="scl">Prev. mensalidade</div><div class="scv">${f(t.p)}</div></div><div class="sc"><div class="scl">Fechada</div><div class="scv">${f(t.m)}</div></div><div class="sc sc-wa"><div class="scl">Desc. comercial</div><div class="scv" style="color:#F37021">${f(t.dC)}</div></div><div class="sc sc-wa"><div class="scl">Desc. operacional</div><div class="scv" style="color:#F37021">${f(t.dO)}</div></div><div class="sc ${a==null?'':a>=95?'sc-ok':a>=80?'sc-wa':'sc-er'}"><div class="scl">Faturado</div><div class="scv" style="color:#004042">${f(t.fat)}</div><div class="scs">${a!=null?'Aderência '+a+'%':'−'}</div></div>`;
+  if(sc)sc.innerHTML=`<div class="sc"><div class="scl">Prev. mensalidade</div><div class="scv">${f(t.p)}</div></div><div class="sc"><div class="scl">Fechada</div><div class="scv">${f(t.m)}</div></div><div class="sc sc-wa" style="padding:0;overflow:hidden"><div style="display:flex;height:100%"><div style="flex:1;padding:14px 12px;border-right:1px solid var(--border)"><div class="scl">Desc. Comercial</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dC)}</div></div><div style="flex:1;padding:14px 12px"><div class="scl">Desc. Operacional</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dO)}</div></div></div></div><div class="sc ${a==null?'':a>=95?'sc-ok':a>=80?'sc-wa':'sc-er'}"><div class="scl">Faturado</div><div class="scv" style="color:#004042">${f(t.fat)}</div><div class="scs">${a!=null?'Performance '+a+'%':'−'}</div></div>`;
   rCRws(document.getElementById('tbc'),rows);
 }
 function popExpSelectors(){
@@ -1691,7 +1737,7 @@ function rCP(){
   const cnt=document.getElementById('cco');if(cnt)cnt.textContent=`${rows.length} linha${rows.length!==1?'s':''}`;
   let t={p:0,m:0,dC:0,dO:0,fat:0};rows.forEach(r=>{t.p+=r.prevMens||0;t.m+=r.mensFechada||0;t.dC+=r.dC||0;t.dO+=r.dO||0;if(r.isFat)t.fat+=r.tot||0;});
   const a=t.p>0&&t.fat>0?Math.round(t.fat/t.p*100):null;const ac=a==null?'inherit':a>=95?'#2A8C6E':a>=80?'#F37021':'var(--red)';
-  document.getElementById('scop').innerHTML=`<div class="sc"><div class="scl">Prev. mensalidade</div><div class="scv">${f(t.p)}</div></div><div class="sc"><div class="scl">Mensalidade fechada</div><div class="scv">${f(t.m)}</div></div><div class="sc sc-wa"><div class="scl">Descontos</div><div class="scv" style="color:#F37021">${f(t.dC+t.dO)}</div></div><div class="sc sc-ok"><div class="scl">Faturado</div><div class="scv" style="color:#004042">${f(t.fat)}</div></div><div class="sc ${a==null?'':a>=95?'sc-ok':a>=80?'sc-wa':'sc-er'}"><div class="scl">Aderência</div><div class="scv" style="color:${ac}">${a!=null?a+'%':'−'}</div></div>`;
+  document.getElementById('scop').innerHTML=`<div class="sc"><div class="scl">Prev. mensalidade</div><div class="scv">${f(t.p)}</div></div><div class="sc"><div class="scl">Mensalidade fechada</div><div class="scv">${f(t.m)}</div></div><div class="sc sc-wa" style="padding:0;overflow:hidden"><div style="display:flex;height:100%"><div style="flex:1;padding:14px 12px;border-right:1px solid var(--border)"><div class="scl">Desc. Comercial</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dC)}</div></div><div style="flex:1;padding:14px 12px"><div class="scl">Desc. Operacional</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dO)}</div></div></div></div><div class="sc sc-ok"><div class="scl">Faturado</div><div class="scv" style="color:#004042">${f(t.fat)}</div></div><div class="sc ${a==null?'':a>=95?'sc-ok':a>=80?'sc-wa':'sc-er'}"><div class="scl">Performance</div><div class="scv" style="color:${ac}">${a!=null?a+'%':'−'}</div></div>`;
   rCRws(document.getElementById('tbcp'),rows);
 }
 // ═══════════════ KANBAN ═══════════════
@@ -2464,7 +2510,7 @@ function rI(){
   <div class="sl" style="margin-top:0">Visão geral${filterM?(' — '+ML[parseInt(filterM.split('-')[1])-1]+' '+filterM.split('-')[0]):''}
   </div>
   <div class="sc-row sc-5">
-    <div class="sc ${ad==null?'':ad>=95?'sc-ok':ad>=80?'sc-wa':'sc-er'}"><div class="scl">Aderência mês atual</div><div class="scv" style="color:${ad==null?'inherit':ad>=95?'#2A8C6E':ad>=80?'#F37021':'var(--red)'}">${ad!=null?ad+'%':'−'}</div><div class="scs">${f(last.fat)} de ${f(last.prev)}</div></div>
+    <div class="sc ${ad==null?'':ad>=95?'sc-ok':ad>=80?'sc-wa':'sc-er'}"><div class="scl">Performance mês atual</div><div class="scv" style="color:${ad==null?'inherit':ad>=95?'#2A8C6E':ad>=80?'#F37021':'var(--red)'}">${ad!=null?ad+'%':'−'}</div><div class="scs">${f(last.fat)} de ${f(last.prev)}</div></div>
     <div class="sc sc-er"><div class="scl">Backlog</div><div class="scv" style="color:var(--red)">${f(last.bl)}</div></div>
     <div class="sc"><div class="scl">Previsto mês</div><div class="scv">${f(last.prev)}</div></div>
     <div class="sc ${retrTotal>5?'sc-er':retrTotal>2?'sc-wa':'sc-ok'}"><div class="scl">Retrabalhos</div><div class="scv" style="color:${retrTotal>5?'var(--red)':retrTotal>2?'#F37021':'#2A8C6E'}">${retrTotal}</div><div class="scs">sobre BMs fechados</div></div>
@@ -2475,7 +2521,7 @@ function rI(){
     <div class="cbx sp"><div class="ctit">Receita prevista × faturada</div><div class="cwr tl"><canvas id="ci-r"></canvas></div></div>
   </div>
   <div class="cg">
-    <div class="cbx"><div class="ctit">Aderência % por mês</div><div class="cwr"><canvas id="ci-a"></canvas></div></div>
+    <div class="cbx"><div class="ctit">Performance % por mês</div><div class="cwr"><canvas id="ci-a"></canvas></div></div>
     <div class="cbx"><div class="ctit">Taxa de retrabalho (%) — sobre BMs fechados</div><div class="cwr"><canvas id="ci-rt"></canvas></div></div>
   </div>
   <div class="cg">
@@ -2510,7 +2556,7 @@ function rI(){
   const base={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:10},color:tC,boxWidth:10}}},scales:{x:{ticks:{font:{size:10},color:tC},grid:{color:gC}},y:{ticks:{font:{size:10},color:tC},grid:{color:gC}}}};
 
   ic2['r']=new Chart(document.getElementById('ci-r'),{type:'bar',data:{labels,datasets:[{label:'Previsto',data:hD.map(d=>d.prev),backgroundColor:'rgba(0,64,66,0.2)',borderColor:'rgba(0,64,66,0.7)',borderWidth:1,borderRadius:4},{label:'Faturado',data:hD.map(d=>d.fat),backgroundColor:'rgba(243,112,33,0.7)',borderRadius:4}]},options:base});
-  ic2['a']=new Chart(document.getElementById('ci-a'),{type:'line',data:{labels,datasets:[{label:'Aderência %',data:hD.map(d=>d.prev>0&&d.fat>0?Math.round(d.fat/d.prev*100):null),borderColor:'#004042',backgroundColor:'rgba(0,64,66,0.08)',tension:.3,fill:true,pointRadius:4},{label:'Meta 95%',data:hD.map(()=>95),borderColor:'#F37021',borderDash:[4,4],pointRadius:0,borderWidth:1.5}]},options:{...base,scales:{...base.scales,y:{...base.scales.y,min:0,max:105}}}});
+  ic2['a']=new Chart(document.getElementById('ci-a'),{type:'line',data:{labels,datasets:[{label:'Performance %',data:hD.map(d=>d.prev>0&&d.fat>0?Math.round(d.fat/d.prev*100):null),borderColor:'#004042',backgroundColor:'rgba(0,64,66,0.08)',tension:.3,fill:true,pointRadius:4},{label:'Meta 95%',data:hD.map(()=>95),borderColor:'#F37021',borderDash:[4,4],pointRadius:0,borderWidth:1.5}]},options:{...base,scales:{...base.scales,y:{...base.scales.y,min:0,max:105}}}});
   ic2['rt']=new Chart(document.getElementById('ci-rt'),{type:'bar',data:{labels,datasets:[{label:'Taxa retrabalho %',data:hD.map(d=>d.retrRate),backgroundColor:hD.map(d=>d.retrRate>20?'rgba(224,82,82,0.7)':d.retrRate>10?'rgba(243,112,33,0.6)':'rgba(0,64,66,0.4)'),borderRadius:4}]},options:{...base,scales:{...base.scales,y:{...base.scales.y,min:0,max:100}}}});
   ic2['b']=new Chart(document.getElementById('ci-b'),{type:'bar',data:{labels,datasets:[{label:'Backlog (R$)',data:hD.map(d=>d.bl),backgroundColor:'rgba(224,82,82,0.35)',borderColor:'rgba(224,82,82,0.7)',borderWidth:1,borderRadius:4}]},options:base});
   ic2['d']=new Chart(document.getElementById('ci-d'),{type:'bar',data:{labels,datasets:[{label:'Desc. comercial',data:hD.map(d=>d.dC),backgroundColor:'rgba(243,112,33,0.4)',borderRadius:4},{label:'Desc. operacional',data:hD.map(d=>d.dO),backgroundColor:'rgba(224,82,82,0.3)',borderRadius:4}]},options:{...base,scales:{...base.scales,x:{...base.scales.x,stacked:true},y:{...base.scales.y,stacked:true}}}});
@@ -2527,6 +2573,71 @@ function mostrarSemBM(){
     return c.nomeContrato+' ('+c.nomeCliente+') — '+eqs.length+' ativo(s): '+eqs.map(a=>a.ativo+' ['+a.status+']').join(', ');
   }).join('\n\n');
   alert(lista.length+' contrato(s) sem BM em Junho/2026:\n\n'+linhas+'\n\nDica: vá ao ADM e clique em "Zerar BMs e recriar para Junho".');
+}
+
+// ═══════════════ EXPORT ATIVOS ═══════════════
+function exportarAtivos(){
+  const q=(document.getElementById('sa')?.value||'').toLowerCase();
+  const fS=document.getElementById('fsa')?.value||'';
+  const fT=document.getElementById('fta')?.value||'';
+  const fC=document.getElementById('fca')?.value||'';
+
+  let lista=ativos.filter(a=>{
+    const c=cs.find(x=>x.id===a.contractId);
+    const mQ=!q||[a.ativo,a.serie,a.equipamento,c?.nomeCliente,c?.nomeContrato,c?.codCliente].some(v=>v?.toLowerCase().includes(q));
+    return mQ&&(!fS||a.status===fS)&&(!fT||a.tipo===fT)&&(!fC||a.contractId===fC);
+  });
+
+  if(!lista.length){alert('Nenhum ativo para exportar.');return;}
+
+  const header=[
+    'Ativo (tag)','Nº série','Equipamento','Tipo','Status',
+    'Contrato','Nº contrato','Cliente','Cód. SAP','Período','M+1',
+    'SLA','Mensalidade','Franquia (h)','Hora contratual (R$)',
+    'Faixa I limite','Faixa I preço','Faixa II limite','Faixa II preço','Faixa III limite','Faixa III preço',
+    'Per. cobr. excedente','Tipo cobr. excedente','Últ. cobr. excedente',
+    'Franquia reduzida','Meses FR','Preço FR',
+    'Data mobilização','Horímetro mobilização','Data desmobilização'
+  ];
+
+  const data=lista.map(a=>{
+    const c=cs.find(x=>x.id===a.contractId);
+    const fin=gEF(a);
+    const fx=fin.faixas||[];
+    return[
+      a.ativo||'',a.serie||'',a.equipamento||'',a.tipo||'',a.status||'',
+      c?.nomeContrato||'',c?.nroContrato||'',c?.nomeCliente||'',c?.codCliente||'',
+      c?`${c.periodoInicio} ao ${c.periodoFim}`:'',
+      isM1(c,a)?'S':'N',
+      fin.sla||'',fin.mensalidade||0,fin.franquia||0,fin.horaContratual||0,
+      fx[0]?.limite||'',fx[0]?.preco||0,
+      fx[1]?.limite||'',fx[1]?.preco||0,
+      fx[2]?.limite||'',fx[2]?.preco||0,
+      fin.perExc||'',fin.tipoExc||'',
+      fin.ultCobrExc?fd(fin.ultCobrExc):'',
+      fin.franquiaReduzida?'S':'N',
+      fin.mesesFR?.map(i=>MS[i]).join(',')||'',
+      fin.precoFR||0,
+      a.dataMob?fd(a.dataMob):'',
+      a.horimetroMob||0,
+      a.dataDesmob?fd(a.dataDesmob):''
+    ];
+  });
+
+  const ws=XLSX.utils.aoa_to_sheet([header,...data]);
+  ws['!cols']=[
+    {wch:12},{wch:14},{wch:22},{wch:12},{wch:14},
+    {wch:25},{wch:14},{wch:25},{wch:12},{wch:12},{wch:5},
+    {wch:8},{wch:14},{wch:12},{wch:14},
+    {wch:12},{wch:12},{wch:12},{wch:12},{wch:12},{wch:12},
+    {wch:16},{wch:16},{wch:16},
+    {wch:14},{wch:14},{wch:10},
+    {wch:14},{wch:16},{wch:14}
+  ];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Ativos');
+  const dt=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,`ativos_${dt}.xlsx`);
 }
 
 // ═══════════════ EXPORT CONSOLIDADO ═══════════════
@@ -2548,7 +2659,7 @@ function exportarConsolidado(){
   const header=['Competência','Contrato','Nº Contrato','Cliente','SAP','Ativo','Equipamento','Tipo',
     'M/M+1','Dt. Início','Dt. Fim','Prop. %',
     'Prev. Mensalidade','Mens. Fechada','Hrs Excedentes','Valor Excedente',
-    'Desc. Comercial','Desc. Operacional','Total BM','Aderência %',
+    'Desc. Comercial','Desc. Operacional','Total BM','Performance %',
     'Nº NF Mensalidade','Data NF Mensalidade','Nº NF Excedente','Data NF Excedente','Status BM'];
 
   const wb=XLSX.utils.book_new();
