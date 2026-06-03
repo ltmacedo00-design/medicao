@@ -2929,8 +2929,8 @@ function gerarPDFBM(bmId){
     return`<tr>
       <td>${a.ativo}</td>
       <td>${a.equipamento||'—'}</td>
-      <td>${med.dataIni?new Date(med.dataIni).toLocaleDateString('pt-BR'):'—'}</td>
-      <td>${med.dataFim?new Date(med.dataFim).toLocaleDateString('pt-BR'):'—'}</td>
+      <td>${med.dataIni?fd(med.dataIni):'—'}</td>
+      <td>${med.dataFim?fd(med.dataFim):'—'}</td>
       <td>${f(isFR?fin.precoFR:fin.mensalidade)}</td>
       <td>${Math.round(prop*100)}%</td>
       <td>${f(mens)}</td>
