@@ -2014,8 +2014,16 @@ function openBM(id){
         <div class="g2">
           <div class="ff"><label class="fl">Desc. comercial (R$)</label><input type="number" value="${med.descCom||''}" placeholder="0" oninput="uMFN('${b.id}','${eid}','descCom',this.value)"></div>
           <div class="ff"><label class="fl">Obs. comercial</label><textarea placeholder="Motivo..." oninput="uMF('${b.id}','${eid}','obsDescCom',this.value)">${med.obsDescCom||''}</textarea></div>
+          <div class="ff"><label class="fl">Anexo comercial (img/pdf)</label>
+            <input type="file" accept="image/*,.pdf" style="font-size:11px" onchange="anexarDesc(event,'${b.id}','${eid}','Com')">
+            ${med.anexoDescCom?`<div style="margin-top:4px;font-size:11px;color:#2A8C6E"><i class="ti ti-paperclip"></i> ${med.anexoDescCom.name} <button class="bti" style="padding:1px 5px;font-size:10px" onclick="verAnexo('${b.id}','${eid}','Com')">Ver</button></div>`:''}
+          </div>
           <div class="ff"><label class="fl">Desc. operacional (R$)</label><input type="number" value="${med.descOp||''}" placeholder="0" oninput="uMFN('${b.id}','${eid}','descOp',this.value)"></div>
           <div class="ff"><label class="fl">Obs. operacional</label><textarea placeholder="Motivo..." oninput="uMF('${b.id}','${eid}','obsDescOp',this.value)">${med.obsDescOp||''}</textarea></div>
+          <div class="ff"><label class="fl">Anexo operacional (img/pdf)</label>
+            <input type="file" accept="image/*,.pdf" style="font-size:11px" onchange="anexarDesc(event,'${b.id}','${eid}','Op')">
+            ${med.anexoDescOp?`<div style="margin-top:4px;font-size:11px;color:#2A8C6E"><i class="ti ti-paperclip"></i> ${med.anexoDescOp.name} <button class="bti" style="padding:1px 5px;font-size:10px" onclick="verAnexo('${b.id}','${eid}','Op')">Ver</button></div>`:''}
+          </div>
         </div>
       </div>
     </div>`;
@@ -2126,6 +2134,36 @@ function bmTab(tab,bmId){
   const b=bs.find(x=>x.id===bmId);
   const badge=document.querySelector('#bm-tab-hist-'+bmId+' .badge');
   if(badge&&b)badge.textContent=(b.historico||[]).length;
+}
+
+// ── ANEXOS DE DESCONTO ──
+function anexarDesc(event,bmId,eid,tipo){
+  const file=event.target.files[0];if(!file)return;
+  if(file.size>2*1024*1024){alert('Arquivo muito grande. Use arquivos até 2MB.');event.target.value='';return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const b=bs.find(x=>x.id===bmId);if(!b.medicao)b.medicao={};if(!b.medicao[eid])b.medicao[eid]={};
+    b.medicao[eid]['anexoDesc'+tipo]={name:file.name,type:file.type,data:e.target.result};
+    autoSaveBM(bmId);
+    // Show filename confirmation
+    const parent=event.target.parentElement;
+    let span=parent.querySelector('.anexo-info');
+    if(!span){span=document.createElement('div');span.className='anexo-info';span.style.cssText='margin-top:4px;font-size:11px;color:#2A8C6E';parent.appendChild(span);}
+    span.innerHTML=`<i class="ti ti-paperclip"></i> ${file.name} <button class="bti" style="padding:1px 5px;font-size:10px" onclick="verAnexo('${bmId}','${eid}','${tipo}')">Ver</button>`;
+  };
+  reader.readAsDataURL(file);
+}
+function verAnexo(bmId,eid,tipo){
+  const b=bs.find(x=>x.id===bmId);
+  const anexo=b?.medicao?.[eid]?.['anexoDesc'+tipo];
+  if(!anexo){alert('Nenhum anexo encontrado.');return;}
+  if(anexo.type.startsWith('image/')){
+    const w=window.open('','_blank');
+    w.document.write('<html><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="'+anexo.data+'" style="max-width:100%;max-height:100vh"></body></html>');
+    w.document.close();
+  } else {
+    const a=document.createElement('a');a.href=anexo.data;a.download=anexo.name;a.click();
+  }
 }
 
 // ── AUTO-SAVE BM (debounced) ──
@@ -2810,12 +2848,17 @@ function renderApproverView(){
       const a=ativos.find(x=>x.id===eid);const med=b.medicao?.[eid]||{};
       const dv=_user.role==='op'?(med.descOp||0):(med.descCom||0);
       const obs=_user.role==='op'?(med.obsDescOp||''):(med.obsDescCom||'');
+      const anexo=_user.role==='op'?(med.anexoDescOp||null):(med.anexoDescCom||null);
       if(!dv)return'';
-      return`<tr style="font-size:11px">
-        <td style="padding:6px 8px;font-weight:700;color:var(--text)">${a?.ativo||eid}</td>
-        <td style="padding:6px 8px;color:var(--text2)">${a?.equipamento||'-'}</td>
-        <td style="padding:6px 8px;font-weight:700;color:#F37021">${f(dv)}</td>
-        <td style="padding:6px 8px;color:var(--text3)">${obs||'—'}</td>
+      const anexoHTML=anexo?`<div style="margin-top:6px">${anexo.type.startsWith('image/')?
+        `<img src="${anexo.data}" style="max-width:180px;max-height:120px;border-radius:4px;border:1px solid var(--border);cursor:pointer" onclick="window.open('${anexo.data}','_blank')" title="Clique para abrir">`
+        :`<a href="${anexo.data}" download="${anexo.name}" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;background:var(--bg2);border:1px solid var(--border);font-size:11px;color:var(--text2);text-decoration:none"><i class="ti ti-file-download"></i> ${anexo.name}</a>`
+      }</div>`:'';
+      return`<tr style="font-size:11px;vertical-align:top">
+        <td style="padding:8px;font-weight:700;color:var(--text);white-space:nowrap">${a?.ativo||eid}</td>
+        <td style="padding:8px;color:var(--text2);white-space:nowrap">${a?.equipamento||'-'}</td>
+        <td style="padding:8px;font-weight:700;color:#F37021;white-space:nowrap">${f(dv)}</td>
+        <td style="padding:8px;color:var(--text2);white-space:normal;min-width:200px;max-width:350px;line-height:1.5">${obs||'—'}${anexoHTML}</td>
       </tr>`;
     }).join('');
 
@@ -2843,7 +2886,7 @@ function renderApproverView(){
               <th style="background:var(--bg2);padding:6px 8px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--text3);border-bottom:1px solid var(--border)">Ativo</th>
               <th style="background:var(--bg2);padding:6px 8px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--text3);border-bottom:1px solid var(--border)">Equipamento</th>
               <th style="background:var(--bg2);padding:6px 8px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--text3);border-bottom:1px solid var(--border)">Desconto ${tipoLabel}</th>
-              <th style="background:var(--bg2);padding:6px 8px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--text3);border-bottom:1px solid var(--border)">Justificativa solicitante</th>
+              <th style="background:var(--bg2);padding:6px 8px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--text3);border-bottom:1px solid var(--border)">Justificativa + Anexo</th>
             </tr></thead>
             <tbody>${eqRows||'<tr><td colspan="4" style="padding:10px;color:var(--text3);text-align:center">Nenhum desconto registrado nos equipamentos</td></tr>'}</tbody>
           </table>
