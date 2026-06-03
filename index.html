@@ -1624,8 +1624,10 @@ function rP(){
   const cur=ym(y,m);
   // BMs done (Faturado) this month
   const fatBMs=bs.filter(b=>b.competencia===cur&&b.status===SFAT);
-  // Backlog: pending BMs from previous months
+  // Backlog: pending BMs from previous months (rolls forward each month)
   const bl=bs.filter(b=>(b.manual||(b.competencia>='2026-06'))&&b.competencia<cur&&b.status!==SFAT&&b.status!==SCAN);
+  const tB=bl.reduce((s,b)=>s+cBLV(b),0);
+  const tF=fatBMs.reduce((s,b)=>s+(b.valorFaturado||cBMV(b)),0);
   // Build previsto groups by contract
   const grupos=[];
   cs.forEach(c=>{
@@ -1664,13 +1666,12 @@ function rP(){
   const qPf=(document.getElementById('spv')?.value||'').toLowerCase();
   const gruposFilt=qPf?grupos.filter(g=>g.c.nomeContrato.toLowerCase().includes(qPf)||g.c.nomeCliente.toLowerCase().includes(qPf)||(g.c.codCliente||'').toLowerCase().includes(qPf)):grupos;
   const tP=gruposFilt.reduce((s,g)=>s+g.items.reduce((ss,i)=>ss+i.valor,0),0);
-  const tB=bl.reduce((s,b)=>s+cBLV(b),0);
-  const tF=fatBMs.reduce((s,b)=>s+(b.valorFaturado||cBMV(b)),0);
+
   const sc=document.getElementById('scp');
-  if(sc)sc.innerHTML=`<div class="sc"><div class="scl">Previsto do mês</div><div class="scv">${f(tP+tB)}</div><div class="scs">incl. ${bl.length} backlog</div></div><div class="sc sc-er"><div class="scl">Backlog</div><div class="scv" style="color:var(--red)">${f(tB)}</div><div class="scs">${bl.length} BMs</div></div><div class="sc sc-ok"><div class="scl">Faturado no mês</div><div class="scv" style="color:#004042">${f(tF)}</div><div class="scs">${fatBMs.length} BMs</div></div><div class="sc"><div class="scl">A faturar</div><div class="scv" style="color:#004042">${f(Math.max(0,tP+tB-tF))}</div></div><div class="sc"><div class="scl">Contratos ativos</div><div class="scv">${cs.filter(c=>ativos.some(a=>a.contractId===c.id&&a.status==='locado')).length}</div></div>`;
+  if(sc)sc.innerHTML=`<div class="sc"><div class="scl">Previsto do mês</div><div class="scv">${f(tP+tB)}</div><div class="scs">incl. ${bl.length} backlog</div></div><div class="sc sc-er"><div class="scl">Backlog</div><div class="scv" style="color:var(--red)">${f(tB)}</div><div class="scs">${bl.length} BM${bl.length!==1?'s':''}</div></div><div class="sc sc-ok"><div class="scl">Faturado no mês</div><div class="scv" style="color:#004042">${f(tF)}</div><div class="scs">${fatBMs.length} BMs</div></div><div class="sc"><div class="scl">A faturar</div><div class="scv" style="color:#004042">${f(Math.max(0,tP+tB-tF))}</div></div><div class="sc"><div class="scl">Contratos ativos</div><div class="scv">${cs.filter(c=>ativos.some(a=>a.contractId===c.id&&a.status==='locado')).length}</div></div>`;
   const bls=document.getElementById('bls');
   if(bls)bls.innerHTML=!bl.length?'':
-    `<div class="sl" style="color:var(--red)"><i class="ti ti-alert-triangle" style="vertical-align:-1px;margin-right:5px"></i>Backlog <span class="badge br">${bl.length}</span></div>${bl.map(b=>{const c=cs.find(x=>x.id===b.contractId);const[by,bm2]=b.competencia.split('-').map(Number);return'<div class="blb"><div class="blh"><div><div style="font-family:\'Barlow Condensed\',sans-serif;font-size:14px;font-weight:700;color:var(--red)">'+(c?.nomeContrato||'-')+'</div><div style="font-size:11px;color:rgba(224,82,82,0.7);margin-top:1px">'+(c?.nomeCliente)+' · '+yml(by,bm2)+'</div></div><div style="display:flex;align-items:center;gap:8px"><span class="badge br">'+b.status+'</span><span style="font-family:\'Barlow Condensed\',sans-serif;font-size:15px;font-weight:700;color:var(--red)">'+f(cBMV(b))+'</span></div></div></div>';}).join('')}<div style="height:14px"></div>`;
+    `<div class="sl" style="color:var(--red)"><i class="ti ti-alert-triangle" style="vertical-align:-1px;margin-right:5px"></i>Backlog <span class="badge br">${bl.length}</span></div>${bl.map(b=>{const c=cs.find(x=>x.id===b.contractId);const[by,bm2]=b.competencia.split('-').map(Number);return'<div class="blb"><div class="blh"><div><div style="font-family:\'Barlow Condensed\',sans-serif;font-size:14px;font-weight:700;color:var(--red)">'+(c?.nomeContrato||'-')+'</div><div style="font-size:11px;color:rgba(224,82,82,0.7);margin-top:1px">'+(c?.nomeCliente)+' · '+yml(by,bm2)+'</div></div><div style="display:flex;align-items:center;gap:8px"><span class="badge br">'+b.status+'</span><span style="font-family:\'Barlow Condensed\',sans-serif;font-size:15px;font-weight:700;color:var(--red)">'+f(cBLV(b))+'</span></div></div></div>';}).join('')}<div style="height:14px"></div>`;
   const pvl=document.getElementById('pvl');
   if(pvl)pvl.innerHTML=`<div class="sl">Previsto ${yml(y,m)}</div>${!grupos.length?'<div style="text-align:center;padding:24px;color:var(--text3)">Nenhum ativo previsto para este mês</div>':gruposFilt.map(g=>{const{c,items}=g;const total=items.reduce((s,i)=>s+i.valor,0);return'<div class="cb3" style="margin-bottom:10px"><div class="cbh"><div><div class="cbn">'+c.nomeContrato+'</div><div class="cbm">'+c.nomeCliente+'</div></div><div style="font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:800;color:#F37021">'+f(total)+'</div></div><table class="it"><thead><tr><th>Ativo</th><th>Equipamento</th><th>Tipo</th><th>M+1</th><th>FR</th><th>Prop.</th><th>Base mensal</th><th>Valor previsto</th></tr></thead><tbody>'+items.map(e=>'<tr><td style="font-weight:700;color:var(--text)">'+e.ativo+'</td><td>'+e.equipamento+'</td><td><span class="badge bgr">'+e.tipo+'</span></td><td>'+(e.isM1?'<span class="badge ba">M+1</span>':'−')+'</td><td>'+(e.isFR?'<span class="badge bg">Sim</span>':'−')+'</td><td style="color:var(--text3)">'+Math.round(e.prop*100)+'%</td><td>'+f(e.bv)+'</td><td><div style="display:flex;align-items:center;gap:6px">'+(e.editedManual?'<div class="ved" title="Editado"></div>':'')+'<input class="vi '+(e.editedManual?'ed':'')+'" type="number" value="'+Math.round(e.valor)+'" onchange="epv(\''+e.ek+'\',this.value)"></div></td></tr>').join('')+'</tbody></table></div>';}).join('')}`;
 }
@@ -1680,7 +1681,8 @@ async function epv(key,val){me[key]=parseFloat(val)||0;await sE();rP();}
 function bCR(sYM){
   const rows=[];const[,sm]=sYM.split('-').map(Number);
   cs.forEach(c=>{
-    const bm=bs.find(b=>b.contractId===c.id&&b.competencia===sYM);
+    // Include backlog BMs faturado with NF date in this month
+    const bm=bs.find(b=>b.contractId===c.id&&(b.competencia===sYM||(b.competencia<sYM&&b.status===SFAT&&(b.nfMensData||b.dtEnvioCliente||'').slice(0,7)===sYM)));
     ativos.filter(a=>a.contractId===c.id).forEach(a=>{
       if(a.status==='disponível')return;
       const fin=gEF(a);const isFR=fin.franquiaReduzida&&fin.mesesFR.includes(sm-1);
