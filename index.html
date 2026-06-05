@@ -1677,7 +1677,7 @@ async function epv(key,val){me[key]=parseFloat(val)||0;await sE();rP();}
 
 // ═══════════════ CONSOLIDADO ═══════════════
 function bCR(sYM){
-  const rows=[];const[,sm]=sYM.split('-').map(Number);
+  const rows=[];const[sy,sm]=sYM.split('-').map(Number);
   cs.forEach(c=>{
     // Include backlog BMs faturado with NF date in this month
     const bm=bs.find(b=>b.contractId===c.id&&(b.competencia===sYM||(b.competencia<sYM&&b.status===SFAT&&(b.nfMensData||b.dtEnvioCliente||'').slice(0,7)===sYM)));
