@@ -1220,7 +1220,7 @@ function calcPropMob(a,c,year,month,m1Override){
   return Math.round(Math.min(1,Math.max(0,work/total))*1000)/1000;
 }
 function gBMS(bm){
-  const[,m]=bm.competencia.split('-').map(Number);let tM=0,tE=0,tDC=0,tDO=0;
+  const[,m]=bm.competencia.split('-').map(Number);let tM=0,tE=0,tDC=0,tDO=0,tAd=0;
   (bm.equipIds||[]).forEach(eid=>{
     const med=bm.medicao?.[eid]||{};const p=med.prop??1;
     const a=ativos.find(x=>x.id===eid);if(!a)return;
@@ -1239,32 +1239,30 @@ function gBMS(bm){
         }
       }
     }
-    tDC+=med.descCom||0;tDO+=med.descOp||0;
+    tDC+=med.descCom||0;tDO+=med.descOp||0;tAd+=med.valorAdicional||0;
   });
-  return{tM,tE,dC:tDC,dO:tDO,tot:tM+tE-tDC-tDO};
+  return{tM,tE,dC:tDC,dO:tDO,tAd,tot:tM+tE+tAd-tDC-tDO};
 }
 function cBMV(bm){const{tM,tE,dC,dO}=gBMS(bm);return tM+tE-dC-dO;}
 
 // Backlog value: use previsto (proportional) for unfilled BMs, actual if filled
 function cBLV(bm){
   if(bm.valorFaturado)return bm.valorFaturado;
-  // Check if medicao has actual data (horímetros filled)
   const hasMed=bm.medicao&&(bm.equipIds||[]).some(eid=>{
     const med=bm.medicao[eid];return med&&(med.hFim!=null||med.prop!=null);
   });
-  if(hasMed)return cBMV(bm); // use actual calculated value
-  // No medição filled — use previsto from calcPropMob
+  if(hasMed)return cBMV(bm);
   const c=cs.find(x=>x.id===bm.contractId);if(!c)return 0;
   const[by,bm2]=bm.competencia.split('-').map(Number);
   let total=0;
   (bm.equipIds||[]).forEach(eid=>{
     const a=ativos.find(x=>x.id===eid);if(!a)return;
     const fin=gEF(a);if(!fin.mensalidade&&!fin.porHora)return;
-    const prop=calcPropMob(a,c,by,bm2,isM1(c,a));
-    if(prop===0)return;
+    const useM1=bm.manual?false:isM1(c,a);
+    let prop=calcPropMob(a,c,by,bm2,useM1);
+    if(prop===0)prop=1;
     const isFR=fin.franquiaReduzida&&fin.mesesFR.includes(bm2-1);
-    if(fin.porHora){total+=0;} // can't know hours yet
-    else{const bv=isFR?fin.precoFR:fin.mensalidade;const v=bv*prop;if(!isNaN(v))total+=v;}
+    if(!fin.porHora){const bv=isFR?fin.precoFR:fin.mensalidade;const v=bv*prop;if(!isNaN(v))total+=v;}
   });
   return total;
 }
@@ -1684,21 +1682,30 @@ function bCR(sYM){
     // Include backlog BMs faturado with NF date in this month
     const bm=bs.find(b=>b.contractId===c.id&&(b.competencia===sYM||(b.competencia<sYM&&b.status===SFAT&&(b.nfMensData||b.dtEnvioCliente||'').slice(0,7)===sYM)));
     ativos.filter(a=>a.contractId===c.id).forEach(a=>{
-      if(a.status==='disponível')return;
+      if(a.status==='disponível'||a.status==='venda')return;
+      // Skip M+1 ativos if billing month doesn't match (same logic as rP)
+      if(isM1(c,a)&&!bm){
+        // M+1: billing month is competencia, work was previous month
+        // Only include if there's a BM or if the ativo was active in work period
+      }
       const fin=gEF(a);const isFR=fin.franquiaReduzida&&fin.mesesFR.includes(sm-1);
-      const med=bm?.medicao?.[a.id]||{};const prop=calcPropMob(a,c,...sYM.split('-').map(Number));
-      const prevMens=(isFR?fin.precoFR:fin.mensalidade)*prop;
+      const med=bm?.medicao?.[a.id]||{};
+      // Pass isM1 so M+1 contracts use the correct work period (same as rP)
+      const m1flag=isM1(c,a);
+      const prop=calcPropMob(a,c,sy,sm,m1flag);
+      if(prop===0&&!bm){return;} // skip if not active this period and no BM
+      const prevMens=fin.porHora?0:(isFR?fin.precoFR:fin.mensalidade)*prop;
       const mensFechada=med.hFim!=null?(isFR?fin.precoFR:fin.mensalidade)*(med.prop??1):null;
       const horas=med.hFim!=null?Math.max(0,(med.hFim||0)-(med.hIni||0)):null;
       const deveExcCR=!fin.franquiaLivre&&!fin.porHora&&deveCobrarExc(fin.perExc,fin.ultCobrExc,sYM);
       const excVal=horas!=null&&deveExcCR?cExc(fin.faixas,fin.franquia*(med.prop??1),horas):null;
-      const totBM=mensFechada!=null?(mensFechada+(excVal||0)-(med.descCom||0)-(med.descOp||0)):null;
+      const adicVal=(med.valorAdicional||0);const totBM=mensFechada!=null?(mensFechada+(excVal||0)+adicVal-(med.descCom||0)-(med.descOp||0)):null;
       // Pre-fill dates for display (same logic as BM modal)
       const pf2=preFillDates(a,c,sYM);
       const dataIniDisp=med.dataIni||pf2.dataIni;
       const dataFimDisp=med.dataFim||pf2.dataFim;
       const m1Flag=isM1(c,a);
-      rows.push({contrato:c.nomeContrato,nroContrato:c.nroContrato,cliente:c.nomeCliente,codCliente:c.codCliente,ativo:a.ativo,equipamento:a.equipamento,tipo:a.tipo,status:bm?.status||'Sem BM',prevMens,mensFechada,hE:horas,vE:excVal,dC:med.descCom||null,dO:med.descOp||null,tot:totBM,nMN:bm?.nfMensNum||'',nMD:bm?.nfMensData||'',nEN:bm?.nfExcNum||'',nED:bm?.nfExcData||'',isFat:bm?.status===SFAT,dataIni:dataIniDisp,dataFim:dataFimDisp,isM1:m1Flag,prop,periodoInicio:c.periodoInicio,periodoFim:c.periodoFim});
+      rows.push({contrato:c.nomeContrato,nroContrato:c.nroContrato,cliente:c.nomeCliente,codCliente:c.codCliente,ativo:a.ativo,equipamento:a.equipamento,tipo:a.tipo,status:bm?.status||'Sem BM',prevMens,mensFechada,hE:horas,vE:excVal,adicVal,dC:med.descCom||null,dO:med.descOp||null,tot:totBM,nMN:bm?.nfMensNum||'',nMD:bm?.nfMensData||'',nEN:bm?.nfExcNum||'',nED:bm?.nfExcData||'',isFat:bm?.status===SFAT,dataIni:dataIniDisp,dataFim:dataFimDisp,isM1:m1Flag,prop,periodoInicio:c.periodoInicio,periodoFim:c.periodoFim});
     });
   });
   return rows;
@@ -1706,8 +1713,8 @@ function bCR(sYM){
 function rCRws(tb,rows){
   if(!tb)return;
   if(!rows.length){tb.innerHTML='<tr><td colspan="20" style="text-align:center;padding:24px;color:var(--text3)">Nenhum dado</td></tr>';return;}
-  let t={p:0,m:0,e:0,dC:0,dO:0,fat:0,ef:0};
-  rows.forEach(r=>{t.p+=r.prevMens||0;t.m+=r.mensFechada||0;t.e+=r.vE||0;t.dC+=r.dC||0;t.dO+=r.dO||0;if(r.isFat){t.fat+=r.tot||0;t.ef+=r.vE||0;}});
+  let t={p:0,m:0,e:0,dC:0,dO:0,fat:0,ef:0,ad:0,efa:0};
+  rows.forEach(r=>{t.p+=r.prevMens||0;t.m+=r.mensFechada||0;t.e+=r.vE||0;t.dC+=r.dC||0;t.dO+=r.dO||0;t.ad+=(r.adicVal||0);if(r.isFat){t.fat+=r.tot||0;t.ef+=r.vE||0;t.efa+=(r.adicVal||0);}});
   const aT=t.p>0&&t.fat>0?Math.round(t.fat/t.p*100):null;
   const aC=aT==null?'inherit':aT>=95?'#2A8C6E':aT>=80?'#F37021':'var(--red)';
   tb.innerHTML=rows.map(r=>{
@@ -1765,7 +1772,7 @@ function rCP(){
   const cnt=document.getElementById('cco');if(cnt)cnt.textContent=`${rows.length} linha${rows.length!==1?'s':''}`;
   let t={p:0,m:0,dC:0,dO:0,fat:0};rows.forEach(r=>{t.p+=r.prevMens||0;t.m+=r.mensFechada||0;t.dC+=r.dC||0;t.dO+=r.dO||0;if(r.isFat)t.fat+=r.tot||0;});
   const a=t.p>0&&t.fat>0?Math.round(t.fat/t.p*100):null;const ac=a==null?'inherit':a>=95?'#2A8C6E':a>=80?'#F37021':'var(--red)';
-  document.getElementById('scop').innerHTML=`<div class="sc"><div class="scl">Prev. mensalidade</div><div class="scv">${f(t.p)}</div></div><div class="sc"><div class="scl">Mensalidade fechada</div><div class="scv">${f(t.m)}</div></div>${t.ef>0?`<div class="sc"><div class="scl">Excedente faturado</div><div class="scv" style="color:#F37021">${f(t.ef)}</div></div>`:''}<div class="sc sc-wa" style="padding:0;overflow:hidden"><div style="display:flex;height:100%"><div style="flex:1;padding:14px 12px;border-right:1px solid var(--border)"><div class="scl">Desc. Comercial</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dC)}</div></div><div style="flex:1;padding:14px 12px"><div class="scl">Desc. Operacional</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dO)}</div></div></div></div><div class="sc sc-ok"><div class="scl">Faturado</div><div class="scv" style="color:#004042">${f(t.fat)}</div></div><div class="sc ${a==null?'':a>=95?'sc-ok':a>=80?'sc-wa':'sc-er'}"><div class="scl">Performance</div><div class="scv" style="color:${ac}">${a!=null?a+'%':'−'}</div></div>`;
+  document.getElementById('scop').innerHTML=`<div class="sc"><div class="scl">Prev. mensalidade</div><div class="scv">${f(t.p)}</div></div><div class="sc"><div class="scl">Mensalidade fechada</div><div class="scv">${f(t.m)}</div></div>${t.ef>0?`<div class="sc"><div class="scl">Excedente faturado</div><div class="scv" style="color:#F37021">${f(t.ef)}</div></div>`:''}${t.efa>0?`<div class="sc"><div class="scl">Adicional faturado</div><div class="scv" style="color:#F37021">${f(t.efa)}</div></div>`:''}<div class="sc sc-wa" style="padding:0;overflow:hidden"><div style="display:flex;height:100%"><div style="flex:1;padding:14px 12px;border-right:1px solid var(--border)"><div class="scl">Desc. Comercial</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dC)}</div></div><div style="flex:1;padding:14px 12px"><div class="scl">Desc. Operacional</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dO)}</div></div></div></div><div class="sc sc-ok"><div class="scl">Faturado</div><div class="scv" style="color:#004042">${f(t.fat)}</div></div><div class="sc ${a==null?'':a>=95?'sc-ok':a>=80?'sc-wa':'sc-er'}"><div class="scl">Performance</div><div class="scv" style="color:${ac}">${a!=null?a+'%':'−'}</div></div>`;
   rCRws(document.getElementById('tbcp'),rows);
 }
 // ═══════════════ KANBAN ═══════════════
@@ -1935,39 +1942,74 @@ function pK(k){
 // ═══════════════ FATURADO MODAL (NF entry) ═══════════════
 function openFaturadoModal(bmId,cb){
   const b=bs.find(x=>x.id===bmId);const c=cs.find(x=>x.id===b.contractId);
-  const{tM,tE,dC,dO,tot}=gBMS(b);const hasExc=hExc(b);
+  const{tM,tE,tAd,dC,dO,tot}=gBMS(b);
   window._fmc=cb;
-  const html=`<div class="modal msm" onclick="event.stopPropagation()">
-    <div class="mh2"><span class="mht">Registrar faturamento</span><button class="bti" onclick="closeFM()"><i class="ti ti-x"></i></button></div>
-    <div class="mbd">
-      <div class="ht"><i class="ti ti-info-circle"></i> Informe os dados de faturamento para registrar como Faturado.</div>
+  // Build per-equip NF rows using string concat (avoid nested backticks)
+  let eqRows='';
+  (b.equipIds||[]).forEach(eid=>{
+    const a=ativos.find(x=>x.id===eid);
+    const med=b.medicao?.[eid]||{};
+    const nf=b.nfsEquip?.[eid]||{};
+    const fin=gEF(a);
+    const eqExc=!fin.franquiaLivre&&!fin.porHora&&deveCobrarExc(fin.perExc,fin.ultCobrExc,b.competencia)&&Math.max(0,(med.hFim||0)-(med.hIni||0))>0;
+    const eqAd=(med.valorAdicional||0)>0;
+    let row='<div style="border:1px solid var(--border);border-radius:var(--r);padding:10px;margin-bottom:8px">';
+    row+='<div style="font-weight:700;font-size:12px;margin-bottom:8px;color:var(--text)">'+(a?.ativo||eid)+' — '+(a?.equipamento||'')+'</div>';
+    row+='<div class="g2">';
+    row+='<div class="ff"><label class="fl">Nº NF Mensalidade</label><input type="text" class="fm-eq-nn" data-eid="'+eid+'" value="'+(nf.nfMensNum||b.nfMensNum||'')+'"></div>';
+    row+='<div class="ff"><label class="fl">Data NF Mensalidade</label><input type="date" class="fm-eq-nd" data-eid="'+eid+'" value="'+(nf.nfMensData||b.nfMensData||'')+'"></div>';
+    row+='</div>';
+    if(eqExc){
+      row+='<div class="g2" style="margin-top:6px">';
+      row+='<div class="ff"><label class="fl">Nº NF Excedente</label><input type="text" class="fm-eq-en" data-eid="'+eid+'" value="'+(nf.nfExcNum||b.nfExcNum||'')+'"></div>';
+      row+='<div class="ff"><label class="fl">Data NF Excedente</label><input type="date" class="fm-eq-ed" data-eid="'+eid+'" value="'+(nf.nfExcData||b.nfExcData||'')+'"></div>';
+      row+='</div>';
+    }
+    if(eqAd){
+      row+='<div class="g2" style="margin-top:6px">';
+      row+='<div class="ff"><label class="fl">Nº NF Valor adicional</label><input type="text" class="fm-eq-an" data-eid="'+eid+'" value="'+(nf.nfAdicNum||'')+'"></div>';
+      row+='<div class="ff"><label class="fl">Data NF Adicional</label><input type="date" class="fm-eq-ad" data-eid="'+eid+'" value="'+(nf.nfAdicData||'')+'"></div>';
+      row+='</div>';
+    }
+    row+='</div>';
+    eqRows+=row;
+  });
+  const sumInfo='Mens: '+f(tM)+(tE>0?' | Exc: '+f(tE):'')+(tAd>0?' | Adic: '+f(tAd):'')+(dC+dO>0?' | Desc: −'+f(dC+dO):'');
+  const html=`<div class="modal" onclick="event.stopPropagation()" style="max-width:620px">
+    <div class="mh2"><span class="mht">Registrar faturamento — ${c?.nomeContrato}</span><button class="bti" onclick="closeFM()"><i class="ti ti-x"></i></button></div>
+    <div class="mbd" style="max-height:70vh;overflow-y:auto">
       <div style="background:var(--bg);border-radius:var(--r);padding:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
         <div>
-          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.14em;">Total do BM — ${c?.nomeContrato}</div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.14em;">Total do BM</div>
           <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;color:#F37021;margin-top:4px;">${f(tot)}</div>
         </div>
-        <div style="font-size:11px;color:var(--text3)">Mens: ${f(tM)}${tE>0?' | Exc: '+f(tE):''}${dC+dO>0?' | Desc: '+f(dC+dO):''}</div>
+        <div style="font-size:11px;color:var(--text3)">${sumInfo}</div>
       </div>
-      <div class="fst">NF — Mensalidade</div>
-      <div class="g2" style="margin-bottom:12px">
-        <div class="ff"><label class="fl">Nº NF Mensalidade</label><input type="text" id="fm-nn" value="${b.nfMensNum||''}"></div>
-        <div class="ff"><label class="fl">Data NF Mensalidade</label><input type="date" id="fm-nd" value="${b.nfMensData||''}"></div>
-      </div>
-      ${hasExc?`<div class="exca"><div class="excat"><i class="ti ti-alert-circle" style="margin-right:4px;vertical-align:-1px"></i>Horas excedentes detectadas</div><div class="g2" style="margin-top:8px"><div class="ff"><label class="fl">Nº NF Excedente</label><input type="text" id="fm-en" value="${b.nfExcNum||''}"></div><div class="ff"><label class="fl">Data NF Excedente</label><input type="date" id="fm-ed" value="${b.nfExcData||''}"></div></div></div>`:''}
+      <div class="ht" style="margin-bottom:12px"><i class="ti ti-info-circle"></i> Preencha as NFs por equipamento. Se o número for igual para todos, copie e cole.</div>
+      ${eqRows}
     </div>
     <div class="mft"><button class="btn" onclick="closeFM()">Cancelar</button><button class="btn btn-p" onclick="confFat('${bmId}')"><i class="ti ti-check"></i> Confirmar faturado</button></div>
   </div>`;
   document.getElementById('mfm').innerHTML=html;document.getElementById('mfm').classList.remove('dn');document.getElementById('mfm').onclick=()=>closeFM();
 }
+
 function closeFM(){document.getElementById('mfm').classList.add('dn');window._fmc=null;}
 async function confFat(bmId){
   const b=bs.find(x=>x.id===bmId);
-  b.nfMensNum=document.getElementById('fm-nn')?.value||'';
-  b.nfMensData=document.getElementById('fm-nd')?.value||'';
-  b.nfExcNum=document.getElementById('fm-en')?.value||'';
-  b.nfExcData=document.getElementById('fm-ed')?.value||'';
+  // Save per-equip NF data
+  b.nfsEquip={};
+  document.querySelectorAll('.fm-eq-nn').forEach(el=>{const eid=el.dataset.eid;if(!b.nfsEquip[eid])b.nfsEquip[eid]={};b.nfsEquip[eid].nfMensNum=el.value;});
+  document.querySelectorAll('.fm-eq-nd').forEach(el=>{const eid=el.dataset.eid;if(!b.nfsEquip[eid])b.nfsEquip[eid]={};b.nfsEquip[eid].nfMensData=el.value;});
+  document.querySelectorAll('.fm-eq-en').forEach(el=>{const eid=el.dataset.eid;if(!b.nfsEquip[eid])b.nfsEquip[eid]={};b.nfsEquip[eid].nfExcNum=el.value;});
+  document.querySelectorAll('.fm-eq-ed').forEach(el=>{const eid=el.dataset.eid;if(!b.nfsEquip[eid])b.nfsEquip[eid]={};b.nfsEquip[eid].nfExcData=el.value;});
+  document.querySelectorAll('.fm-eq-an').forEach(el=>{const eid=el.dataset.eid;if(!b.nfsEquip[eid])b.nfsEquip[eid]={};b.nfsEquip[eid].nfAdicNum=el.value;});
+  document.querySelectorAll('.fm-eq-ad').forEach(el=>{const eid=el.dataset.eid;if(!b.nfsEquip[eid])b.nfsEquip[eid]={};b.nfsEquip[eid].nfAdicData=el.value;});
+  // Backwards compat: save first equip NF to top-level fields
+  const firstEid=(b.equipIds||[])[0];const firstNF=b.nfsEquip[firstEid]||{};
+  b.nfMensNum=firstNF.nfMensNum||'';b.nfMensData=firstNF.nfMensData||'';
+  b.nfExcNum=firstNF.nfExcNum||'';b.nfExcData=firstNF.nfExcData||'';
   b.valorFaturado=cBMV(b);
-  addHist(b,'NF registrada','','',`NF mens: ${b.nfMensNum||'−'} | Data: ${b.nfMensData||'−'}${b.nfExcNum?' | NF exc: '+b.nfExcNum:''}`);
+  addHist(b,'NF registrada','','',`NF registrada — ${Object.keys(b.nfsEquip).length} equipamento(s)`);
   const cb=window._fmc;closeFM();if(cb)cb();
 }
 // ═══════════════ BM MODAL ═══════════════
@@ -2051,6 +2093,11 @@ function openBM(id){
           <div class="ff"><label class="fl">Anexo operacional (img/pdf)</label>
             <input type="file" accept="image/*,.pdf" style="font-size:11px" onchange="anexarDesc(event,'${b.id}','${eid}','Op')">
             ${med.anexoDescOp?`<div style="margin-top:4px;font-size:11px;color:#2A8C6E"><i class="ti ti-paperclip"></i> ${med.anexoDescOp.name} <button class="bti" style="padding:1px 5px;font-size:10px" onclick="verAnexo('${b.id}','${eid}','Op')">Ver</button></div>`:''}
+          </div>
+          <div class="fst" style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">Valor adicional</div>
+          <div class="g2">
+            <div class="ff"><label class="fl">Valor adicional (R$)</label><input type="number" value="${med.valorAdicional||''}" placeholder="0" oninput="uMFN('${b.id}','${eid}','valorAdicional',this.value)"></div>
+            <div class="ff"><label class="fl">Justificativa</label><textarea placeholder="Descreva o valor adicional..." oninput="uMF('${b.id}','${eid}','obsAdicional',this.value)">${med.obsAdicional||''}</textarea></div>
           </div>
         </div>
       </div>
