@@ -1986,7 +1986,7 @@ function rCP(){
     tPCons+=ed!=null?ed:pv.prevMens;
   });});
   // Backlog total (pending + faturado from any month)
-  const blAllCons=bs.filter(b=>(b.manual||(b.competencia>='2026-06'))&&b.competencia<curCons&&b.status!==SCAN);
+  const blAllCons=bs.filter(b=>(b.manual||(b.competencia>='2026-06'))&&b.competencia<curCons&&b.status!==SCAN&&(b.status!==SFAT||getBMNFDate(b)===curCons));
   const tBLCons=blAllCons.reduce((s,b)=>s+cBLV(b),0);
   // Descontos + hExc from current month rows only
   const rowsCur=rows.filter(r=>!r.isBacklog);
