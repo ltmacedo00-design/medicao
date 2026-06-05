@@ -664,6 +664,7 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
         <div class="topbar"><div class="topbar-left">
           <div class="mn"><button onclick="chM('prev',-1)"><i class="ti ti-chevron-left"></i></button><div class="mnl" id="pml"></div><button onclick="chM('prev',1)"><i class="ti ti-chevron-right"></i></button></div>
           <div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Filtrar contrato, cliente..." id="spv" oninput="rP()" style="width:220px"></div>
+          <button class="btn btn-sm" onclick="exportarPrevisto()"><i class="ti ti-table-export"></i> Exportar</button>
         </div></div>
         <div id="scp" class="sc-row sc-5"></div><div id="bls"></div><div id="pvl"></div>
       </div>
@@ -752,6 +753,10 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
             <button class="btn" onclick="dlJSON()"><i class="ti ti-database-export"></i> Exportar JSON</button>
             <button class="btn" onclick="dlHTML()"><i class="ti ti-file-download"></i> Baixar HTML</button>
           </div>
+          <div class="sl">Diagnóstico</div>
+          <div class="ht"><i class="ti ti-info-circle"></i> Compara os valores de Previsto vs Consolidado por ativo para identificar divergências.</div>
+          <button class="btn" style="color:var(--blue);border-color:var(--blue)" onclick="diagPrevisto()"><i class="ti ti-bug"></i> Diagnóstico Previsto vs Consolidado</button>
+          <div style="height:16px"></div>
           <div class="sl" style="color:var(--red)">Operações críticas</div>
           <div class="ht" style="border-left-color:var(--red)"><i class="ti ti-alert-triangle"></i> Atenção: as operações abaixo são irreversíveis. Faça um backup antes de executar.</div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -1617,44 +1622,66 @@ async function confirmarVinculo(cid){
   rAll();
 }
 // ═══════════════ PREVISTO ═══════════════
+// ── Shared previsto per-ativo helper (used by rP and bCR to ensure same values) ──
+function calcPrevAtivoMes(a,c,y,m){
+  // Returns {prop, prevMens, skip}
+  const fin=gEF(a);
+  if(a.status==='disponível'||a.status==='venda')return{skip:true};
+  const prop=calcPropMob(a,c,y,m); // isM1 resolved internally
+  if(prop===0)return{skip:true,prop:0};
+  const sm=m;
+  const isFR=fin.franquiaReduzida&&fin.mesesFR.includes(sm-1);
+  let prevMens=0;
+  if(fin.porHora){
+    prevMens=0; // porHora not included in previsto (unknown at month start)
+  } else {
+    const bv=isFR?fin.precoFR:fin.mensalidade;
+    prevMens=isNaN(bv*prop)?0:bv*prop;
+  }
+  return{prop,prevMens,isFR,fin,skip:false};
+}
+// Get billing date of a BM (NF date of mensalidade)
+function getBMNFDate(b){
+  if(b.nfMensData)return b.nfMensData.slice(0,7); // YYYY-MM
+  if(b.nfsEquip){
+    for(const nf of Object.values(b.nfsEquip)){
+      if(nf.nfMensData)return nf.nfMensData.slice(0,7);
+    }
+  }
+  return null;
+}
+// Get total mensalidade value of a BM (excluding excedente, adicional)
+function getBMMens(b){
+  const{tM}=gBMS(b);return tM;
+}
 function rP(){
   const{y,m}=mo.prev;const lbl=document.getElementById('pml');if(lbl)lbl.textContent=yml(y,m);
   const cur=ym(y,m);
-  // BMs done (Faturado) this month
-  const fatBMs=bs.filter(b=>b.competencia===cur&&b.status===SFAT);
-  // Backlog: pending BMs from previous months (rolls forward each month)
+  // Faturado no mês = BMs faturados com data NF (nfMensData) em cur — independe da competência
+  const fatBMs=bs.filter(b=>b.status===SFAT&&getBMNFDate(b)===cur);
+  // tF = total faturado (mensalidade + excedente + adicional - descontos)
+  const tF=fatBMs.reduce((s,b)=>s+(b.valorFaturado||cBMV(b)),0);
+  // tFMens = só a parte de mensalidade do faturado (para cálculo de A faturar)
+  const tFMens=fatBMs.reduce((s,b)=>s+getBMMens(b),0);
+  // Backlog: pending BMs from previous months
   const bl=bs.filter(b=>(b.manual||(b.competencia>='2026-06'))&&b.competencia<cur&&b.status!==SFAT&&b.status!==SCAN);
   const tB=bl.reduce((s,b)=>s+cBLV(b),0);
-  const tF=fatBMs.reduce((s,b)=>s+(b.valorFaturado||cBMV(b)),0);
+  // Backlog faturado: backlog BMs that were faturado with NF date in current month
+  const blFat=bs.filter(b=>(b.manual||(b.competencia>='2026-06'))&&b.competencia<cur&&b.status===SFAT&&getBMNFDate(b)===cur);
+  const tBF=blFat.reduce((s,b)=>s+(b.valorFaturado||cBMV(b)),0);
   // Build previsto groups by contract
   const grupos=[];
   cs.forEach(c=>{
     const items=[];
-    ativos.filter(a=>a.contractId===c.id&&a.status!=='disponível').forEach(a=>{
-      const fin=gEF(a);
-      const comp=getComp(c,a,y,m);
-      if(comp!==cur)return; // M+1 assets appear in their billing month
-      // Check mobilization: asset must have been mobilized by period end
-      if(a.dataMob){
-        const mob=new Date(xlDate(String(a.dataMob||"")));
-        const pEnd=new Date(y,m-1,c.periodoFim||20);
-        if(mob>pEnd)return; // not mobilized yet this period
-      }
-      const prop=calcPropMob(a,c,y,m);
-      if(prop===0)return;
-      const isFR=fin.franquiaReduzida&&fin.mesesFR.includes(m-1);
-      let bv,val;
+    ativos.filter(a=>a.contractId===c.id).forEach(a=>{
+      const pv=calcPrevAtivoMes(a,c,y,m);
+      if(pv.skip)return;
+      const{prop,prevMens,isFR,fin}=pv;
+      let bv=fin.porHora?fin.horaContratual:(isFR?fin.precoFR:fin.mensalidade);
+      let val=prevMens;
       if(fin.porHora){
-        // porHora: no fixed mensalidade — show horaContratual as rate, value=0 until hours filled
         bv=fin.horaContratual;
-        // Try to get value from existing BM
-        const bmExist=bs.find(b=>b.contractId===c.id&&b.competencia===cur);
-        const medE=bmExist?.medicao?.[a.id];
-        const horasE=medE?.hFim!=null?Math.max(0,(medE.hFim||0)-(medE.hIni||0)):null;
-        val=horasE!=null?fin.horaContratual*horasE:0;
-      } else {
-        bv=isFR?fin.precoFR:fin.mensalidade;
-        val=isNaN(bv*prop)?0:bv*prop;
+        val=0; // porHora not in previsto — value unknown at month start
       }
       const ek=`${c.id}-${a.id}-${cur}`;const ed=me[ek];
       items.push({...a,contractId:c.id,isFR,bv,prop,valor:ed!=null?ed:val,editedManual:ed!=null,ek,isM1:isM1(c,a),porHora:fin.porHora});
@@ -1666,13 +1693,147 @@ function rP(){
   const tP=gruposFilt.reduce((s,g)=>s+g.items.reduce((ss,i)=>ss+i.valor,0),0);
 
   const sc=document.getElementById('scp');
-  if(sc)sc.innerHTML=`<div class="sc"><div class="scl">Previsto do mês</div><div class="scv">${f(tP+tB)}</div><div class="scs">incl. ${bl.length} backlog</div></div><div class="sc sc-er"><div class="scl">Backlog</div><div class="scv" style="color:var(--red)">${f(tB)}</div><div class="scs">${bl.length} BM${bl.length!==1?'s':''}</div></div><div class="sc sc-ok"><div class="scl">Faturado no mês</div><div class="scv" style="color:#004042">${f(tF)}</div><div class="scs">${fatBMs.length} BMs</div></div><div class="sc"><div class="scl">A faturar</div><div class="scv" style="color:#004042">${f(Math.max(0,tP+tB-tF))}</div></div><div class="sc"><div class="scl">Contratos ativos</div><div class="scv">${cs.filter(c=>ativos.some(a=>a.contractId===c.id&&a.status==='locado')).length}</div></div>`;
+    // A faturar = mensalidade prevista - mensalidade já faturada no mês
+  const tAF=Math.max(0,tP-tFMens);
+  if(sc)sc.innerHTML=`
+    <div class="sc"><div class="scl">Previsto do mês</div><div class="scv">${f(tP)}</div><div class="scs">mensalidades proporcionais</div></div>
+    <div class="sc sc-er"><div class="scl">Backlog pendente</div><div class="scv" style="color:var(--red)">${f(tB)}</div><div class="scs">${bl.length} BM${bl.length!==1?'s':''}</div></div>
+    ${tBF>0?`<div class="sc sc-ok"><div class="scl">Backlog faturado</div><div class="scv" style="color:#2A8C6E">${f(tBF)}</div><div class="scs">${blFat.length} BM${blFat.length!==1?'s':''} · NF ${cur}</div></div>`:''}
+    <div class="sc sc-ok"><div class="scl">Faturado no mês</div><div class="scv" style="color:#004042">${f(tF)}</div><div class="scs">${fatBMs.length} BM${fatBMs.length!==1?'s':''} · por data NF</div></div>
+    <div class="sc"><div class="scl">A faturar (mensalidade)</div><div class="scv" style="color:#004042">${f(tAF)}</div><div class="scs">previsto − mensalidade faturada</div></div>
+    <div class="sc"><div class="scl">Contratos ativos</div><div class="scv">${cs.filter(c=>ativos.some(a=>a.contractId===c.id&&a.status==='locado')).length}</div></div>
+  `;
   const bls=document.getElementById('bls');
-  if(bls)bls.innerHTML=!bl.length?'':
-    `<div class="sl" style="color:var(--red)"><i class="ti ti-alert-triangle" style="vertical-align:-1px;margin-right:5px"></i>Backlog <span class="badge br">${bl.length}</span></div>${bl.map(b=>{const c=cs.find(x=>x.id===b.contractId);const[by,bm2]=b.competencia.split('-').map(Number);return'<div class="blb"><div class="blh"><div><div style="font-family:\'Barlow Condensed\',sans-serif;font-size:14px;font-weight:700;color:var(--red)">'+(c?.nomeContrato||'-')+'</div><div style="font-size:11px;color:rgba(224,82,82,0.7);margin-top:1px">'+(c?.nomeCliente)+' · '+yml(by,bm2)+'</div></div><div style="display:flex;align-items:center;gap:8px"><span class="badge br">'+b.status+'</span><span style="font-family:\'Barlow Condensed\',sans-serif;font-size:15px;font-weight:700;color:var(--red)">'+f(cBLV(b))+'</span></div></div></div>';}).join('')}<div style="height:14px"></div>`;
+  const blAll=[...bl,...blFat];
+  if(bls){
+    if(!blAll.length){bls.innerHTML='';}else{
+      const header='<div class="sl" style="color:var(--red)"><i class="ti ti-alert-triangle" style="vertical-align:-1px;margin-right:5px"></i>Backlog'+(bl.length?' <span class="badge br">'+bl.length+' pendente'+(bl.length!==1?'s':'')+'</span>':'')+(blFat.length?' <span class="badge bg">'+blFat.length+' faturado'+(blFat.length!==1?'s':'')+'</span>':'')+'</div>';
+      const cards=blAll.map(b=>{
+        const c=cs.find(x=>x.id===b.contractId);
+        const[by,bm2]=b.competencia.split('-').map(Number);
+        const isFat=b.status===SFAT;
+        const val=isFat?(b.valorFaturado||cBMV(b)):cBLV(b);
+        const cor=isFat?'#2A8C6E':'var(--red)';
+        const bg=isFat?'rgba(42,140,110,0.06)':'#FEF2F2';
+        const label=isFat?'Faturado':'Pendente';
+        const nfInfo=isFat&&b.nfMensData?' · NF '+fd(b.nfMensData):'';
+        return '<div class="blb" style="border-left-color:'+cor+'"><div class="blh" style="background:'+bg+'"><div>'
+          +'<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:14px;font-weight:700;color:'+cor+'">'+(c?.nomeContrato||'-')+'</div>'
+          +'<div style="font-size:11px;color:'+cor+';opacity:0.7;margin-top:1px">'+(c?.nomeCliente||'')+' · '+yml(by,bm2)+nfInfo+'</div>'
+          +'</div><div style="display:flex;align-items:center;gap:8px">'
+          +'<span class="badge '+(isFat?'bg':'br')+'">'+label+'</span>'
+          +'<span style="font-family:\'Barlow Condensed\',sans-serif;font-size:15px;font-weight:700;color:'+cor+'">'+f(val)+'</span>'
+          +'</div></div></div>';
+      }).join('');
+      bls.innerHTML=header+cards+'<div style="height:14px"></div>';
+    }
+  }
   const pvl=document.getElementById('pvl');
   if(pvl)pvl.innerHTML=`<div class="sl">Previsto ${yml(y,m)}</div>${!grupos.length?'<div style="text-align:center;padding:24px;color:var(--text3)">Nenhum ativo previsto para este mês</div>':gruposFilt.map(g=>{const{c,items}=g;const total=items.reduce((s,i)=>s+i.valor,0);return'<div class="cb3" style="margin-bottom:10px"><div class="cbh"><div><div class="cbn">'+c.nomeContrato+'</div><div class="cbm">'+c.nomeCliente+'</div></div><div style="font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:800;color:#F37021">'+f(total)+'</div></div><table class="it"><thead><tr><th>Ativo</th><th>Equipamento</th><th>Tipo</th><th>M+1</th><th>FR</th><th>Prop.</th><th>Base mensal</th><th>Valor previsto</th></tr></thead><tbody>'+items.map(e=>'<tr><td style="font-weight:700;color:var(--text)">'+e.ativo+'</td><td>'+e.equipamento+'</td><td><span class="badge bgr">'+e.tipo+'</span></td><td>'+(e.isM1?'<span class="badge ba">M+1</span>':'−')+'</td><td>'+(e.isFR?'<span class="badge bg">Sim</span>':'−')+'</td><td style="color:var(--text3)">'+Math.round(e.prop*100)+'%</td><td>'+f(e.bv)+'</td><td><div style="display:flex;align-items:center;gap:6px">'+(e.editedManual?'<div class="ved" title="Editado"></div>':'')+'<input class="vi '+(e.editedManual?'ed':'')+'" type="number" value="'+Math.round(e.valor)+'" onchange="epv(\''+e.ek+'\',this.value)"></div></td></tr>').join('')+'</tbody></table></div>';}).join('')}`;
 }
+
+function exportarPrevisto(){
+  const{y,m}=mo.prev;const cur=ym(y,m);
+  const header=['Contrato','Nº Contrato','Cliente','SAP','Ativo','Equipamento','Tipo','M/M+1','Prop %','Base mensal','Valor previsto','Edit manual','Status ativo'];
+  const data=[];
+  cs.forEach(c=>{
+    ativos.filter(a=>a.contractId===c.id).forEach(a=>{
+      const pv=calcPrevAtivoMes(a,c,y,m);
+      if(pv.skip)return;
+      const ek=c.id+'-'+a.id+'-'+cur;
+      const ed=me[ek]!=null?me[ek]:null;
+      const valor=ed!=null?ed:pv.prevMens;
+      const fin=gEF(a);
+      const bv=pv.isFR?fin.precoFR:fin.mensalidade;
+      data.push([
+        c.nomeContrato,c.nroContrato,c.nomeCliente,c.codCliente,
+        a.ativo,a.equipamento||'',a.tipo||'',
+        isM1(c,a)?'M+1':'M',
+        Math.round(pv.prop*100)+'%',
+        bv||0,
+        Math.round(valor*100)/100,
+        ed!=null?'Sim':'Não',
+        a.status
+      ]);
+    });
+  });
+  if(!data.length){alert('Nenhum dado para exportar.');return;}
+  // Add total row
+  const total=data.reduce((s,r)=>s+(r[10]||0),0);
+  data.push(['TOTAL','','','','','','','','','',Math.round(total*100)/100,'','']);
+  const ws=XLSX.utils.aoa_to_sheet([header,...data]);
+  ws['!cols']=[{wch:25},{wch:14},{wch:25},{wch:12},{wch:12},{wch:22},{wch:10},{wch:6},{wch:7},{wch:14},{wch:14},{wch:10},{wch:12}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,`Previsto ${MS[m-1]} ${y}`);
+  XLSX.writeFile(wb,`previsto_${y}_${String(m).padStart(2,'0')}.xlsx`);
+}
+
+function diagPrevisto(){
+  const{y,m}=mo.prev;const cur=ym(y,m);
+
+  // rP: all ativos included
+  const rpList=[];
+  cs.forEach(c=>{
+    ativos.filter(a=>a.contractId===c.id).forEach(a=>{
+      const pv=calcPrevAtivoMes(a,c,y,m);
+      if(pv.skip)return;
+      const ek=c.id+'-'+a.id+'-'+cur;
+      const ed=me[ek]!=null?me[ek]:null;
+      const val=ed!=null?ed:pv.prevMens;
+      rpList.push({key:c.id+'|'+a.id,contrato:c.nomeContrato,ativo:a.ativo,val:Math.round(val*100)/100});
+    });
+  });
+
+  // bCR: all rows
+  const bcrRows=bCR(cur);
+  const bcrList=bcrRows.map(r=>{
+    const c=cs.find(x=>x.nomeContrato===r.contrato&&x.nomeCliente===r.cliente);
+    const a=ativos.find(x=>x.ativo===r.ativo&&x.contractId===c?.id);
+    return{key:(c?.id||'?')+'|'+(a?.id||'?'),contrato:r.contrato,ativo:r.ativo,val:Math.round(r.prevMens*100)/100};
+  });
+
+  const rpTotal=rpList.reduce((s,x)=>s+x.val,0);
+  const bcrTotal=bcrList.reduce((s,x)=>s+x.val,0);
+
+  // Find: in rP but not in bCR
+  const bcrKeys=new Set(bcrList.map(x=>x.key));
+  const rpKeys=new Set(rpList.map(x=>x.key));
+  const onlyRP=rpList.filter(x=>!bcrKeys.has(x.key));
+  const onlyBCR=bcrList.filter(x=>!rpKeys.has(x.key));
+
+  // Value differences for shared ativos
+  const valDiffs=[];
+  rpList.forEach(rp=>{
+    const bcr=bcrList.find(x=>x.key===rp.key);
+    if(bcr&&Math.abs(rp.val-bcr.val)>0.01)
+      valDiffs.push({contrato:rp.contrato,ativo:rp.ativo,rp:rp.val,bcr:bcr.val});
+  });
+
+  let msg=`DIAGNÓSTICO Previsto vs Consolidado — ${yml(y,m)}\n`;
+  msg+=`\nTotal rP: R$ ${Math.round(rpTotal).toLocaleString('pt-BR')} (${rpList.length} ativos)`;
+  msg+=`\nTotal bCR: R$ ${Math.round(bcrTotal).toLocaleString('pt-BR')} (${bcrList.length} linhas)`;
+  msg+=`\nDiferença: R$ ${Math.round(bcrTotal-rpTotal).toLocaleString('pt-BR')}`;
+
+  if(onlyRP.length){
+    msg+=`\n\n⚠ ${onlyRP.length} ativo(s) no Previsto mas NÃO no Consolidado:`;
+    onlyRP.slice(0,10).forEach(x=>msg+=`\n  • ${x.contrato} | ${x.ativo} = R$ ${x.val.toLocaleString('pt-BR')}`);
+  }
+  if(onlyBCR.length){
+    msg+=`\n\n⚠ ${onlyBCR.length} linha(s) no Consolidado mas NÃO no Previsto:`;
+    onlyBCR.slice(0,10).forEach(x=>msg+=`\n  • ${x.contrato} | ${x.ativo} = R$ ${x.val.toLocaleString('pt-BR')}`);
+  }
+  if(valDiffs.length){
+    msg+=`\n\n⚠ ${valDiffs.length} ativo(s) com valor diferente:`;
+    valDiffs.slice(0,10).forEach(x=>msg+=`\n  • ${x.contrato} | ${x.ativo}: rP=R$${x.rp} bCR=R$${x.bcr}`);
+  }
+  if(!onlyRP.length&&!onlyBCR.length&&!valDiffs.length)
+    msg+='\n\n✅ Mesmos ativos, mesmos valores — divergência pode ser de backlog ou faturado.';
+
+  alert(msg);
+  console.log('rP list:',rpList);
+  console.log('bCR list:',bcrList);
+}
+
 async function epv(key,val){me[key]=parseFloat(val)||0;await sE();rP();}
 
 // ═══════════════ CONSOLIDADO ═══════════════
@@ -1683,29 +1844,41 @@ function bCR(sYM){
     const bm=bs.find(b=>b.contractId===c.id&&(b.competencia===sYM||(b.competencia<sYM&&b.status===SFAT&&(b.nfMensData||b.dtEnvioCliente||'').slice(0,7)===sYM)));
     ativos.filter(a=>a.contractId===c.id).forEach(a=>{
       if(a.status==='disponível'||a.status==='venda')return;
-      // Skip M+1 ativos if billing month doesn't match (same logic as rP)
-      if(isM1(c,a)&&!bm){
-        // M+1: billing month is competencia, work was previous month
-        // Only include if there's a BM or if the ativo was active in work period
-      }
+      const pv=calcPrevAtivoMes(a,c,sy,sm);
+      if(pv.skip&&!bm)return; // skip if not active AND no BM
+      const prop=pv.prop||0;
+      // Apply manual edit if exists (same as rP)
+      // Only apply manual edit when prop>0 (rP skips prop=0 ativos before ever checking me[ek])
+      const ek=c.id+'-'+a.id+'-'+sYM;
+      const ed=(!pv.skip&&me[ek]!=null)?me[ek]:null;
       const fin=gEF(a);const isFR=fin.franquiaReduzida&&fin.mesesFR.includes(sm-1);
+      const prevMens=(!fin.porHora&&ed!=null)?ed:(pv.prevMens||0); // porHora never in prevMens
+      // porHora: track separately as valorHora
+      let valorHora=0;
+      if(fin.porHora){
+        const medE=bm?.medicao?.[a.id];
+        const horasE=medE?.hFim!=null?Math.max(0,(medE.hFim||0)-(medE.hIni||0)):null;
+        valorHora=horasE!=null?fin.horaContratual*horasE:0;
+      }
       const med=bm?.medicao?.[a.id]||{};
-      // Pass isM1 so M+1 contracts use the correct work period (same as rP)
-      const m1flag=isM1(c,a);
-      const prop=calcPropMob(a,c,sy,sm,m1flag);
-      if(prop===0&&!bm){return;} // skip if not active this period and no BM
-      const prevMens=fin.porHora?0:(isFR?fin.precoFR:fin.mensalidade)*prop;
       const mensFechada=med.hFim!=null?(isFR?fin.precoFR:fin.mensalidade)*(med.prop??1):null;
       const horas=med.hFim!=null?Math.max(0,(med.hFim||0)-(med.hIni||0)):null;
       const deveExcCR=!fin.franquiaLivre&&!fin.porHora&&deveCobrarExc(fin.perExc,fin.ultCobrExc,sYM);
-      const excVal=horas!=null&&deveExcCR?cExc(fin.faixas,fin.franquia*(med.prop??1),horas):null;
+      // For faturado BMs: use actual gBMS excedente (same as kanban value)
+      let excVal=horas!=null&&deveExcCR?cExc(fin.faixas,fin.franquia*(med.prop??1),horas):null;
+      if(bm?.status===SFAT&&bm){
+        const{tE}=gBMS(bm);
+        // Attribute this ativo's share of tE proportionally
+        const nEq=(bm.equipIds||[]).length||1;
+        excVal=tE>0?(tE/nEq):excVal;
+      }
       const adicVal=(med.valorAdicional||0);const totBM=mensFechada!=null?(mensFechada+(excVal||0)+adicVal-(med.descCom||0)-(med.descOp||0)):null;
       // Pre-fill dates for display (same logic as BM modal)
       const pf2=preFillDates(a,c,sYM);
       const dataIniDisp=med.dataIni||pf2.dataIni;
       const dataFimDisp=med.dataFim||pf2.dataFim;
       const m1Flag=isM1(c,a);
-      rows.push({contrato:c.nomeContrato,nroContrato:c.nroContrato,cliente:c.nomeCliente,codCliente:c.codCliente,ativo:a.ativo,equipamento:a.equipamento,tipo:a.tipo,status:bm?.status||'Sem BM',prevMens,mensFechada,hE:horas,vE:excVal,adicVal,dC:med.descCom||null,dO:med.descOp||null,tot:totBM,nMN:bm?.nfMensNum||'',nMD:bm?.nfMensData||'',nEN:bm?.nfExcNum||'',nED:bm?.nfExcData||'',isFat:bm?.status===SFAT,dataIni:dataIniDisp,dataFim:dataFimDisp,isM1:m1Flag,prop,periodoInicio:c.periodoInicio,periodoFim:c.periodoFim});
+      rows.push({contrato:c.nomeContrato,nroContrato:c.nroContrato,cliente:c.nomeCliente,codCliente:c.codCliente,ativo:a.ativo,equipamento:a.equipamento,tipo:a.tipo,status:bm?.status||'Sem BM',prevMens,valorHora,mensFechada,hE:horas,vE:excVal,adicVal,dC:med.descCom||null,dO:med.descOp||null,tot:totBM,nMN:bm?.nfMensNum||'',nMD:bm?.nfMensData||'',nEN:bm?.nfExcNum||'',nED:bm?.nfExcData||'',isFat:bm?.status===SFAT,dataIni:dataIniDisp,dataFim:dataFimDisp,isM1:m1Flag,prop,periodoInicio:c.periodoInicio,periodoFim:c.periodoFim});
     });
   });
   return rows;
@@ -1713,8 +1886,8 @@ function bCR(sYM){
 function rCRws(tb,rows){
   if(!tb)return;
   if(!rows.length){tb.innerHTML='<tr><td colspan="20" style="text-align:center;padding:24px;color:var(--text3)">Nenhum dado</td></tr>';return;}
-  let t={p:0,m:0,e:0,dC:0,dO:0,fat:0,ef:0,ad:0,efa:0};
-  rows.forEach(r=>{t.p+=r.prevMens||0;t.m+=r.mensFechada||0;t.e+=r.vE||0;t.dC+=r.dC||0;t.dO+=r.dO||0;t.ad+=(r.adicVal||0);if(r.isFat){t.fat+=r.tot||0;t.ef+=r.vE||0;t.efa+=(r.adicVal||0);}});
+  let t={p:0,m:0,e:0,dC:0,dO:0,fat:0,ef:0,ad:0,efa:0,vh:0};
+  rows.forEach(r=>{t.p+=r.prevMens||0;t.m+=r.mensFechada||0;t.e+=r.vE||0;t.dC+=r.dC||0;t.dO+=r.dO||0;t.ad+=(r.adicVal||0);t.vh+=(r.valorHora||0);if(r.isFat){t.fat+=r.tot||0;t.ef+=r.vE||0;t.efa+=(r.adicVal||0);}});
   const aT=t.p>0&&t.fat>0?Math.round(t.fat/t.p*100):null;
   const aC=aT==null?'inherit':aT>=95?'#2A8C6E':aT>=80?'#F37021':'var(--red)';
   tb.innerHTML=rows.map(r=>{
@@ -1730,7 +1903,7 @@ function rCons(){
   const{y,m}=mo.prev;const opts=[];for(let i=2;i>=0;i--){const r=aM(y,m,-i);opts.push(r);}
   sel.innerHTML=opts.map(({y:oy,m:om})=>`<option value="${ym(oy,om)}">${yml(oy,om)}</option>`).join('');
   const sYM=sel.value||ym(y,m);let rows=bCR(sYM);if(qC)rows=rows.filter(r=>[r.contrato,r.cliente,r.codCliente].some(v=>v?.toLowerCase().includes(qC)));
-  let t={p:0,m:0,dC:0,dO:0,fat:0};rows.forEach(r=>{t.p+=r.prevMens||0;t.m+=r.mensFechada||0;t.dC+=r.dC||0;t.dO+=r.dO||0;if(r.isFat)t.fat+=r.tot||0;});
+  let t={p:0,m:0,dC:0,dO:0,fat:0,vh:0,ef:0,efa:0};rows.forEach(r=>{t.p+=r.prevMens||0;t.m+=r.mensFechada||0;t.dC+=r.dC||0;t.dO+=r.dO||0;t.vh+=(r.valorHora||0);if(r.isFat){t.fat+=r.tot||0;t.ef+=(r.vE||0);t.efa+=(r.adicVal||0);}});
   const a=t.p>0&&t.fat>0?Math.round(t.fat/t.p*100):null;
   const sc=document.getElementById('scc');
   if(sc)sc.innerHTML=`<div class="sc"><div class="scl">Prev. mensalidade</div><div class="scv">${f(t.p)}</div></div><div class="sc"><div class="scl">Fechada</div><div class="scv">${f(t.m)}</div></div><div class="sc sc-wa" style="padding:0;overflow:hidden"><div style="display:flex;height:100%"><div style="flex:1;padding:14px 12px;border-right:1px solid var(--border)"><div class="scl">Desc. Comercial</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dC)}</div></div><div style="flex:1;padding:14px 12px"><div class="scl">Desc. Operacional</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dO)}</div></div></div></div><div class="sc ${a==null?'':a>=95?'sc-ok':a>=80?'sc-wa':'sc-er'}"><div class="scl">Faturado</div><div class="scv" style="color:#004042">${f(t.fat)}</div><div class="scs">${a!=null?'Performance '+a+'%':'−'}</div></div>`;
@@ -1770,9 +1943,20 @@ function rCP(){
   if(q)rows=rows.filter(r=>[r.contrato,r.cliente,r.codCliente,r.ativo,r.equipamento].some(v=>v?.toLowerCase().includes(q)));
   if(fS)rows=rows.filter(r=>r.status===fS);
   const cnt=document.getElementById('cco');if(cnt)cnt.textContent=`${rows.length} linha${rows.length!==1?'s':''}`;
-  let t={p:0,m:0,dC:0,dO:0,fat:0};rows.forEach(r=>{t.p+=r.prevMens||0;t.m+=r.mensFechada||0;t.dC+=r.dC||0;t.dO+=r.dO||0;if(r.isFat)t.fat+=r.tot||0;});
+  // Faturado = BMs faturados com data de NF neste mês (independe da competência)
+  const {y:cy,m:cm}=mo.cons;const curCons=ym(cy,cm);
+  const fatBMsCons=bs.filter(b=>b.status===SFAT&&getBMNFDate(b)===curCons);
+  const tFCons=fatBMsCons.reduce((s,b)=>s+(b.valorFaturado||cBMV(b)),0);
+  let t={p:0,dC:0,dO:0,fat:tFCons,hExc:0};
+  rows.forEach(r=>{t.p+=r.prevMens||0;t.dC+=r.dC||0;t.dO+=r.dO||0;t.hExc+=(r.vE||0)+(r.valorHora||0);});
   const a=t.p>0&&t.fat>0?Math.round(t.fat/t.p*100):null;const ac=a==null?'inherit':a>=95?'#2A8C6E':a>=80?'#F37021':'var(--red)';
-  document.getElementById('scop').innerHTML=`<div class="sc"><div class="scl">Prev. mensalidade</div><div class="scv">${f(t.p)}</div></div><div class="sc"><div class="scl">Mensalidade fechada</div><div class="scv">${f(t.m)}</div></div>${t.ef>0?`<div class="sc"><div class="scl">Excedente faturado</div><div class="scv" style="color:#F37021">${f(t.ef)}</div></div>`:''}${t.efa>0?`<div class="sc"><div class="scl">Adicional faturado</div><div class="scv" style="color:#F37021">${f(t.efa)}</div></div>`:''}<div class="sc sc-wa" style="padding:0;overflow:hidden"><div style="display:flex;height:100%"><div style="flex:1;padding:14px 12px;border-right:1px solid var(--border)"><div class="scl">Desc. Comercial</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dC)}</div></div><div style="flex:1;padding:14px 12px"><div class="scl">Desc. Operacional</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dO)}</div></div></div></div><div class="sc sc-ok"><div class="scl">Faturado</div><div class="scv" style="color:#004042">${f(t.fat)}</div></div><div class="sc ${a==null?'':a>=95?'sc-ok':a>=80?'sc-wa':'sc-er'}"><div class="scl">Performance</div><div class="scv" style="color:${ac}">${a!=null?a+'%':'−'}</div></div>`;
+  document.getElementById('scop').innerHTML=`
+    <div class="sc"><div class="scl">Prev. mensalidade</div><div class="scv">${f(t.p)}</div><div class="scs">mensalidades proporcionais</div></div>
+    ${t.hExc>0?`<div class="sc"><div class="scl">Horas excedentes + por hora</div><div class="scv" style="color:#F37021">${f(t.hExc)}</div><div class="scs">excedente + ativos por hora</div></div>`:''}
+    <div class="sc sc-wa" style="padding:0;overflow:hidden"><div style="display:flex;height:100%"><div style="flex:1;padding:14px 12px;border-right:1px solid var(--border)"><div class="scl">Desc. Comercial</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dC)}</div></div><div style="flex:1;padding:14px 12px"><div class="scl">Desc. Operacional</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dO)}</div></div></div></div>
+    <div class="sc sc-ok"><div class="scl">Faturado</div><div class="scv" style="color:#004042">${f(t.fat)}</div><div class="scs">por data NF</div></div>
+    <div class="sc ${a==null?'':a>=95?'sc-ok':a>=80?'sc-wa':'sc-er'}"><div class="scl">Performance</div><div class="scv" style="color:${ac}">${a!=null?a+'%':'−'}</div></div>
+  `;
   rCRws(document.getElementById('tbcp'),rows);
 }
 // ═══════════════ KANBAN ═══════════════
