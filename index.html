@@ -1839,50 +1839,79 @@ async function epv(key,val){me[key]=parseFloat(val)||0;await sE();rP();}
 // ═══════════════ CONSOLIDADO ═══════════════
 function bCR(sYM){
   const rows=[];const[sy,sm]=sYM.split('-').map(Number);
-  cs.forEach(c=>{
-    // Include backlog BMs faturado with NF date in this month
-    const bm=bs.find(b=>b.contractId===c.id&&(b.competencia===sYM||(b.competencia<sYM&&b.status===SFAT&&(b.nfMensData||b.dtEnvioCliente||'').slice(0,7)===sYM)));
-    ativos.filter(a=>a.contractId===c.id).forEach(a=>{
+
+  // Collect all relevant BMs for this view:
+  // 1. Current month BMs
+  // 2. Pending backlog BMs (show in the month they should be faturado)
+  // 3. Backlog BMs faturado with NF date in sYM
+  const relevantBMs=bs.filter(b=>{
+    if(b.status===SCAN)return false;
+    if(b.competencia===sYM)return true; // current month
+    if(b.competencia<sYM){
+      if(b.status===SFAT){
+        // faturado backlog: only if NF date in sYM
+        return getBMNFDate(b)===sYM;
+      }
+      // pending backlog: show in current month if (manual or >= 2026-06)
+      if(b.manual||(b.competencia>='2026-06'))return true;
+    }
+    return false;
+  });
+
+  relevantBMs.forEach(bm=>{
+    const c=cs.find(x=>x.id===bm.contractId);if(!c)return;
+    const isBacklog=bm.competencia<sYM;
+    const bmTag=isBacklog?`Backlog ${ML[parseInt(bm.competencia.split('-')[1])-1]} ${bm.competencia.split('-')[0]}`:'';
+
+    (bm.equipIds||[]).forEach(eid=>{
+      const a=ativos.find(x=>x.id===eid);if(!a)return;
       if(a.status==='disponível'||a.status==='venda')return;
       const pv=calcPrevAtivoMes(a,c,sy,sm);
-      if(pv.skip&&!bm)return; // skip if not active AND no BM
-      const prop=pv.prop||0;
-      // Apply manual edit if exists (same as rP)
-      // Only apply manual edit when prop>0 (rP skips prop=0 ativos before ever checking me[ek])
-      const ek=c.id+'-'+a.id+'-'+sYM;
-      const ed=(!pv.skip&&me[ek]!=null)?me[ek]:null;
+      // For backlog rows: use the backlog month's previsto
+      let prevMens=0;
+      if(isBacklog){
+        const[bly,blm]=bm.competencia.split('-').map(Number);
+        const pvBL=calcPrevAtivoMes(a,c,bly,blm);
+        prevMens=pvBL.prevMens||0;
+      } else {
+        // Only apply manual edit when prop>0
+        const ek=c.id+'-'+a.id+'-'+sYM;
+        const ed=(!pv.skip&&me[ek]!=null)?me[ek]:null;
+        prevMens=ed!=null?ed:(pv.prevMens||0);
+      }
       const fin=gEF(a);const isFR=fin.franquiaReduzida&&fin.mesesFR.includes(sm-1);
-      const prevMens=(!fin.porHora&&ed!=null)?ed:(pv.prevMens||0); // porHora never in prevMens
-      // porHora: track separately as valorHora
+      const med=bm.medicao?.[eid]||{};
+      // porHora: track separately
       let valorHora=0;
       if(fin.porHora){
-        const medE=bm?.medicao?.[a.id];
-        const horasE=medE?.hFim!=null?Math.max(0,(medE.hFim||0)-(medE.hIni||0)):null;
+        const horasE=med.hFim!=null?Math.max(0,(med.hFim||0)-(med.hIni||0)):null;
         valorHora=horasE!=null?fin.horaContratual*horasE:0;
       }
-      const med=bm?.medicao?.[a.id]||{};
+      const prop=pv.prop||0;
       const mensFechada=med.hFim!=null?(isFR?fin.precoFR:fin.mensalidade)*(med.prop??1):null;
       const horas=med.hFim!=null?Math.max(0,(med.hFim||0)-(med.hIni||0)):null;
-      const deveExcCR=!fin.franquiaLivre&&!fin.porHora&&deveCobrarExc(fin.perExc,fin.ultCobrExc,sYM);
-      // For faturado BMs: use actual gBMS excedente (same as kanban value)
+      const deveExcCR=!fin.franquiaLivre&&!fin.porHora&&deveCobrarExc(fin.perExc,fin.ultCobrExc,bm.competencia);
       let excVal=horas!=null&&deveExcCR?cExc(fin.faixas,fin.franquia*(med.prop??1),horas):null;
-      if(bm?.status===SFAT&&bm){
-        const{tE}=gBMS(bm);
-        // Attribute this ativo's share of tE proportionally
-        const nEq=(bm.equipIds||[]).length||1;
-        excVal=tE>0?(tE/nEq):excVal;
-      }
-      const adicVal=(med.valorAdicional||0);const totBM=mensFechada!=null?(mensFechada+(excVal||0)+adicVal-(med.descCom||0)-(med.descOp||0)):null;
-      // Pre-fill dates for display (same logic as BM modal)
-      const pf2=preFillDates(a,c,sYM);
+      if(bm.status===SFAT){const{tE}=gBMS(bm);const nEq=(bm.equipIds||[]).length||1;excVal=tE>0?(tE/nEq):excVal;}
+      const adicVal=(med.valorAdicional||0);
+      const totBM=mensFechada!=null?(mensFechada+(excVal||0)+adicVal-(med.descCom||0)-(med.descOp||0)):null;
+      const pf2=preFillDates(a,c,bm.competencia);
       const dataIniDisp=med.dataIni||pf2.dataIni;
       const dataFimDisp=med.dataFim||pf2.dataFim;
-      const m1Flag=isM1(c,a);
-      rows.push({contrato:c.nomeContrato,nroContrato:c.nroContrato,cliente:c.nomeCliente,codCliente:c.codCliente,ativo:a.ativo,equipamento:a.equipamento,tipo:a.tipo,status:bm?.status||'Sem BM',prevMens,valorHora,mensFechada,hE:horas,vE:excVal,adicVal,dC:med.descCom||null,dO:med.descOp||null,tot:totBM,nMN:bm?.nfMensNum||'',nMD:bm?.nfMensData||'',nEN:bm?.nfExcNum||'',nED:bm?.nfExcData||'',isFat:bm?.status===SFAT,dataIni:dataIniDisp,dataFim:dataFimDisp,isM1:m1Flag,prop,periodoInicio:c.periodoInicio,periodoFim:c.periodoFim});
+      rows.push({contrato:c.nomeContrato,nroContrato:c.nroContrato,cliente:c.nomeCliente,codCliente:c.codCliente,
+        ativo:a.ativo,equipamento:a.equipamento,tipo:a.tipo,
+        status:bm.status||'Sem BM',bmTag,isBacklog,
+        prevMens,valorHora,mensFechada,hE:horas,vE:excVal,adicVal,
+        dC:med.descCom||null,dO:med.descOp||null,tot:totBM,
+        nMN:bm.nfMensNum||'',nMD:bm.nfMensData||'',nEN:bm.nfExcNum||'',nED:bm.nfExcData||'',
+        isFat:bm.status===SFAT,
+        dataIni:dataIniDisp,dataFim:dataFimDisp,isM1:isM1(c,a),prop,
+        periodoInicio:c.periodoInicio,periodoFim:c.periodoFim});
     });
   });
   return rows;
 }
+
 function rCRws(tb,rows){
   if(!tb)return;
   if(!rows.length){tb.innerHTML='<tr><td colspan="20" style="text-align:center;padding:24px;color:var(--text3)">Nenhum dado</td></tr>';return;}
@@ -1894,7 +1923,8 @@ function rCRws(tb,rows){
     const a=r.prevMens>0&&r.isFat&&r.tot!=null?Math.round(r.tot/r.prevMens*100):null;
     const ac=a==null?'var(--text3)':a>=95?'#2A8C6E':a>=80?'#F37021':'var(--red)';
     const sC=r.status===SFAT?'bg':r.status===SCAN?'bgr':r.status==='Sem BM'?'bgr':'ba';
-    return`<tr><td style="font-weight:600;color:var(--text)">${r.contrato}</td><td>${r.nroContrato}</td><td>${r.cliente}</td><td>${r.codCliente}</td><td style="font-weight:600;color:var(--text)">${r.ativo}</td><td>${r.equipamento}</td><td><span class="badge bgr">${r.tipo}</span></td><td><span class="badge ${r.isM1?'ba':'bb'}">${r.isM1?'M+1':'M'}</span></td><td style="color:var(--text2)">${r.dataIni?fd(r.dataIni):'−'}</td><td style="color:var(--text2)">${r.dataFim?fd(r.dataFim):'−'}</td><td style="font-weight:600;color:${r.prop<1?'#F37021':'var(--text2)'}">${r.prop!=null?Math.round(r.prop*100)+'%':'−'}</td><td>${f(r.prevMens)}</td><td>${r.mensFechada!=null?f(r.mensFechada):'−'}</td><td>${r.hE!=null?r.hE+'h':'−'}</td><td>${r.vE>0?f(r.vE):'−'}</td><td class="sc2">${r.dC>0?'<span style="color:#F37021">'+f(r.dC)+'</span>':'−'}</td><td>${r.dO>0?'<span style="color:#F37021">'+f(r.dO)+'</span>':'−'}</td><td class="sc2" style="font-weight:600;color:var(--text)">${r.tot!=null?f(r.tot):'−'}</td><td><span style="font-weight:700;color:${ac}">${a!=null?a+'%':'−'}</span></td><td class="sc2">${r.nMN||'−'}</td><td>${r.nMD?fd(r.nMD):'−'}</td><td class="sc2">${r.nEN||'−'}</td><td>${r.nED?fd(r.nED):'−'}</td><td class="sc2"><span class="badge ${sC}">${r.status}</span></td></tr>`;
+    const backlogBadge=r.isBacklog?`<span class="badge" style="background:rgba(224,82,82,0.1);color:var(--red);border:1px solid rgba(224,82,82,0.3);margin-left:4px;font-size:9px">${r.bmTag}</span>`:'';
+    return`<tr><td style="font-weight:600;color:var(--text)">${r.contrato}</td><td>${r.nroContrato}</td><td>${r.cliente}</td><td>${r.codCliente}</td><td style="font-weight:600;color:var(--text)">${r.ativo}</td><td>${r.equipamento}</td><td><span class="badge bgr">${r.tipo}</span></td><td><span class="badge ${r.isM1?'ba':'bb'}">${r.isM1?'M+1':'M'}</span></td><td style="color:var(--text2)">${r.dataIni?fd(r.dataIni):'−'}</td><td style="color:var(--text2)">${r.dataFim?fd(r.dataFim):'−'}</td><td style="font-weight:600;color:${r.prop<1?'#F37021':'var(--text2)'}">${r.prop!=null?Math.round(r.prop*100)+'%':'−'}</td><td>${f(r.prevMens)}</td><td>${r.mensFechada!=null?f(r.mensFechada):'−'}</td><td>${r.hE!=null?r.hE+'h':'−'}</td><td>${r.vE>0?f(r.vE):'−'}</td><td class="sc2">${r.dC>0?'<span style="color:#F37021">'+f(r.dC)+'</span>':'−'}</td><td>${r.dO>0?'<span style="color:#F37021">'+f(r.dO)+'</span>':'−'}</td><td class="sc2" style="font-weight:600;color:var(--text)">${r.tot!=null?f(r.tot):'−'}</td><td><span style="font-weight:700;color:${ac}">${a!=null?a+'%':'−'}</span></td><td class="sc2">${r.nMN||'−'}</td><td>${r.nMD?fd(r.nMD):'−'}</td><td class="sc2">${r.nEN||'−'}</td><td>${r.nED?fd(r.nED):'−'}</td><td class="sc2"><span class="badge ${sC}">${r.status}</span>${backlogBadge}</td></tr>`;
   }).join('')+`<tr class="gt"><td colspan="11">Total — ${rows.length} itens</td><td>${f(t.p)}</td><td>${f(t.m)}</td><td>−</td><td>${f(t.e)}</td><td>${f(t.dC)}</td><td>${f(t.dO)}</td><td>${f(t.fat)}</td><td style="color:${aC}">${aT!=null?aT+'%':'−'}</td><td colspan="5"></td></tr>`;
 }
 function rCons(){
@@ -1947,12 +1977,26 @@ function rCP(){
   const {y:cy,m:cm}=mo.cons;const curCons=ym(cy,cm);
   const fatBMsCons=bs.filter(b=>b.status===SFAT&&getBMNFDate(b)===curCons);
   const tFCons=fatBMsCons.reduce((s,b)=>s+(b.valorFaturado||cBMV(b)),0);
-  let t={p:0,dC:0,dO:0,fat:tFCons,hExc:0};
-  rows.forEach(r=>{t.p+=r.prevMens||0;t.dC+=r.dC||0;t.dO+=r.dO||0;t.hExc+=(r.vE||0)+(r.valorHora||0);});
+  // Prev. mensalidade: computed directly like rP (same logic, same result)
+  let tPCons=0;
+  cs.forEach(cc=>{ativos.filter(a=>a.contractId===cc.id).forEach(a=>{
+    const pv=calcPrevAtivoMes(a,cc,cy,cm);if(pv.skip)return;
+    const ek=cc.id+'-'+a.id+'-'+curCons;
+    const ed=me[ek]!=null?me[ek]:null;
+    tPCons+=ed!=null?ed:pv.prevMens;
+  });});
+  // Backlog total (pending + faturado from any month)
+  const blAllCons=bs.filter(b=>(b.manual||(b.competencia>='2026-06'))&&b.competencia<curCons&&b.status!==SCAN);
+  const tBLCons=blAllCons.reduce((s,b)=>s+cBLV(b),0);
+  // Descontos + hExc from current month rows only
+  const rowsCur=rows.filter(r=>!r.isBacklog);
+  let t={p:tPCons,dC:0,dO:0,fat:tFCons,hExc:0,bl:tBLCons};
+  rowsCur.forEach(r=>{t.dC+=(r.dC||0);t.dO+=(r.dO||0);t.hExc+=(r.vE||0)+(r.valorHora||0);});
   const a=t.p>0&&t.fat>0?Math.round(t.fat/t.p*100):null;const ac=a==null?'inherit':a>=95?'#2A8C6E':a>=80?'#F37021':'var(--red)';
   document.getElementById('scop').innerHTML=`
     <div class="sc"><div class="scl">Prev. mensalidade</div><div class="scv">${f(t.p)}</div><div class="scs">mensalidades proporcionais</div></div>
-    ${t.hExc>0?`<div class="sc"><div class="scl">Horas excedentes + por hora</div><div class="scv" style="color:#F37021">${f(t.hExc)}</div><div class="scs">excedente + ativos por hora</div></div>`:''}
+    <div class="sc sc-er"><div class="scl">Backlog total</div><div class="scv" style="color:var(--red)">${f(t.bl)}</div><div class="scs">${blAllCons.length} BM${blAllCons.length!==1?'s':''}</div></div>
+    ${t.hExc>0?`<div class="sc"><div class="scl">Horas excedentes + por hora</div><div class="scv" style="color:#F37021">${f(t.hExc)}</div></div>`:''}
     <div class="sc sc-wa" style="padding:0;overflow:hidden"><div style="display:flex;height:100%"><div style="flex:1;padding:14px 12px;border-right:1px solid var(--border)"><div class="scl">Desc. Comercial</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dC)}</div></div><div style="flex:1;padding:14px 12px"><div class="scl">Desc. Operacional</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dO)}</div></div></div></div>
     <div class="sc sc-ok"><div class="scl">Faturado</div><div class="scv" style="color:#004042">${f(t.fat)}</div><div class="scs">por data NF</div></div>
     <div class="sc ${a==null?'':a>=95?'sc-ok':a>=80?'sc-wa':'sc-er'}"><div class="scl">Performance</div><div class="scv" style="color:${ac}">${a!=null?a+'%':'−'}</div></div>
@@ -2745,6 +2789,30 @@ function dlHTML(){
 }
 
 // ═══════════════ INDICADORES ═══════════════
+
+// ── Billing week helper ──
+// Given a contract's periodoFim and billing month (YYYY-MM), returns {ym, week, label}
+function getBillingWeek(periodoFim, billingYM){
+  const[by,bm]=billingYM.split('-').map(Number);
+  const pf=parseInt(periodoFim)||20;
+  // Previous month close (e.g. M+1, or periodoFim >= 22): billing week 1 of billingYM
+  if(pf>=22){return{ym:billingYM,week:1,label:`Sem 1 ${MS[bm-1].slice(0,3)}`};}
+  // day 1-7 → billing week 2
+  if(pf<=7){return{ym:billingYM,week:2,label:`Sem 2 ${MS[bm-1].slice(0,3)}`};}
+  // day 8-14 → billing week 3
+  if(pf<=14){return{ym:billingYM,week:3,label:`Sem 3 ${MS[bm-1].slice(0,3)}`};}
+  // day 15-21 → billing week 4
+  return{ym:billingYM,week:4,label:`Sem 4 ${MS[bm-1].slice(0,3)}`};
+}
+function getNFWeek(nfDate){
+  if(!nfDate)return null;
+  const d=new Date(nfDate);if(isNaN(d))return null;
+  const day=d.getUTCDate();
+  const ym2=nfDate.slice(0,7);
+  const[,nm]=ym2.split('-').map(Number);
+  const week=day<=7?1:day<=14?2:day<=21?3:4;
+  return{ym:ym2,week,label:`Sem ${week} ${MS[nm-1].slice(0,3)}`};
+}
 function rI(){
   Object.values(ic2).forEach(c=>{try{c.destroy();}catch(e){}});ic2={};
 
@@ -2880,6 +2948,8 @@ function rI(){
   ic2['b']=new Chart(document.getElementById('ci-b'),{type:'bar',data:{labels,datasets:[{label:'Backlog (R$)',data:hD.map(d=>d.bl),backgroundColor:'rgba(224,82,82,0.35)',borderColor:'rgba(224,82,82,0.7)',borderWidth:1,borderRadius:4}]},options:base});
   ic2['d']=new Chart(document.getElementById('ci-d'),{type:'bar',data:{labels,datasets:[{label:'Desc. comercial',data:hD.map(d=>d.dC),backgroundColor:'rgba(243,112,33,0.4)',borderRadius:4},{label:'Desc. operacional',data:hD.map(d=>d.dO),backgroundColor:'rgba(224,82,82,0.3)',borderRadius:4}]},options:{...base,scales:{...base.scales,x:{...base.scales.x,stacked:true},y:{...base.scales.y,stacked:true}}}});
   if(document.getElementById('ci-lt'))ic2['lt']=new Chart(document.getElementById('ci-lt'),{type:'bar',data:{labels,datasets:[{label:'Lead time (dias)',data:hD.map(d=>d.avgLead),backgroundColor:hD.map(d=>d.avgLead==null?'rgba(0,0,0,0)':d.avgLead<=3?'rgba(0,64,66,0.6)':d.avgLead<=7?'rgba(243,112,33,0.6)':'rgba(224,82,82,0.7)'),borderRadius:4}]},options:{...base,plugins:{...base.plugins,annotation:{annotations:{line1:{type:'line',yMin:3,yMax:3,borderColor:'rgba(0,64,66,0.5)',borderWidth:1.5,borderDash:[4,4],label:{content:'Meta 3d',display:true}}}}},scales:{...base.scales,y:{...base.scales.y,min:0,title:{display:true,text:'Dias',color:tC,font:{size:9}}}}}});
+
+
   const etA=sC3.filter(d=>d.n>0);
   if(etA.length&&document.getElementById('ci-e'))ic2['e']=new Chart(document.getElementById('ci-e'),{type:'doughnut',data:{labels:etA.map(d=>d.s),datasets:[{data:etA.map(d=>d.n),backgroundColor:['rgba(0,64,66,0.4)','rgba(0,64,66,0.8)','rgba(243,112,33,0.4)','rgba(243,112,33,0.6)','rgba(243,112,33,0.6)','rgba(243,112,33,0.4)','rgba(243,112,33,0.4)','rgba(0,64,66,0.5)','rgba(0,64,66,1)','rgba(0,0,0,0.1)'],borderWidth:1,borderColor:'rgba(255,255,255,0.2)'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:9},color:tC,boxWidth:8}}}}});
 }
