@@ -700,7 +700,8 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
     <!-- KANBAN -->
     <div id="page-kanban" class="page">
       <div class="topbar">
-        <div class="topbar-left"><div class="mn"><button onclick="chM('kanban',-1)"><i class="ti ti-chevron-left"></i></button><div class="mnl" id="kml"></div><button onclick="chM('kanban',1)"><i class="ti ti-chevron-right"></i></button></div><div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Buscar contrato, cliente..." id="sk" oninput="rK()"></div><select class="sel" id="kpf" onchange="rK()"><option value="">Todos os períodos</option></select><span id="kc" style="font-size:11px;color:var(--text3)"></span>
+        <div class="topbar-left"><div class="mn"><button onclick="chM('kanban',-1)"><i class="ti ti-chevron-left"></i></button><div class="mnl" id="kml"></div><button onclick="chM('kanban',1)"><i class="ti ti-chevron-right"></i></button></div><div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Buscar contrato, cliente..." id="sk" oninput="rK()"></div><select class="sel" id="kpf" onchange="rK()"><option value="">Todos os períodos</option></select>
+          <span id="kc" style="font-size:11px;color:var(--text3)"></span>
           <button class="btn btn-p btn-sm" onclick="openCriarBM()"><i class="ti ti-plus"></i> Criar BM manual</button>
         </div>
       </div>
@@ -1661,8 +1662,9 @@ function rP(){
   const fatBMs=bs.filter(b=>b.status===SFAT&&getBMNFDate(b)===cur);
   // tF = total faturado (mensalidade + excedente + adicional - descontos)
   const tF=fatBMs.reduce((s,b)=>s+(b.valorFaturado||cBMV(b)),0);
-  // tFMens = só a parte de mensalidade do faturado (para cálculo de A faturar)
-  const tFMens=fatBMs.reduce((s,b)=>s+getBMMens(b),0);
+  // tFMens = mensalidade faturada SOMENTE do mês corrente (sem backlog) para cálculo de A faturar
+  const fatBMsCur=fatBMs.filter(b=>b.competencia===cur);
+  const tFMens=fatBMsCur.reduce((s,b)=>s+getBMMens(b),0);
   // Backlog: pending BMs from previous months
   const bl=bs.filter(b=>(b.manual||(b.competencia>='2026-06'))&&b.competencia<cur&&b.status!==SFAT&&b.status!==SCAN);
   const tB=bl.reduce((s,b)=>s+cBLV(b),0);
@@ -2065,6 +2067,7 @@ function rKC(b,cur){
       ${hasDescPend?'<span class="badge ba">Com desconto</span>':''}
       ${perBadges}
     </div>
+    ${b.discAnaliseAcao&&b.discAnaliseJustif?`<div style="margin:4px 0 6px;padding:6px 8px;border-radius:4px;background:${b.discAnaliseAcao==='approve'?'rgba(42,140,110,0.08)':'rgba(224,82,82,0.08)'};border-left:2px solid ${b.discAnaliseAcao==='approve'?'#2A8C6E':'var(--red)'}"><span style="font-size:10px;font-weight:700;color:${b.discAnaliseAcao==='approve'?'#2A8C6E':'var(--red)'}">${b.discAnaliseAcao==='approve'?'✓':'✗'} ${b.discAnalisePor||'—'}: </span><span style="font-size:10px;color:var(--text2)">${b.discAnaliseJustif}</span></div>`:''}
     <div class="kdf">
       <div class="kdv">${f(valor)}</div>
       <div class="kda">
@@ -2241,26 +2244,49 @@ async function confFat(bmId){
   const cb=window._fmc;closeFM();if(cb)cb();
 }
 // ═══════════════ BM MODAL ═══════════════
+
+function bmToggleModel(bid,model){
+  if(!window['bmModels_'+bid])window['bmModels_'+bid]=new Set();
+  const s=window['bmModels_'+bid];
+  if(s.has(model))s.delete(model);else s.add(model);
+  openBM(bid);
+}
 function openBM(id){
   const b=bs.find(x=>x.id===id);if(!b)return;
   const c=cs.find(x=>x.id===b.contractId);if(!c)return;
   const[by,bm]=b.competencia.split('-').map(Number);
   const isEd=b.status===SMON;const isNF=b.status===SFAT;
-  const eBlocks=(b.equipIds||[]).map(eid=>{
+  // Sort/filter state for this BM
+  const bmOrd=window['bmOrd_'+b.id]||'';
+
+  let eqIds=[...(b.equipIds||[])];
+  // Filter by selected models (checkboxes)
+  const selModels=window['bmModels_'+b.id]||new Set();
+  if(selModels.size>0)eqIds=eqIds.filter(eid=>{const a=ativos.find(x=>x.id===eid);return selModels.has(a?.equipamento||'');});
+  if(bmOrd==='az')eqIds.sort((x,y)=>(ativos.find(a=>a.id===x)?.ativo||'').localeCompare(ativos.find(a=>a.id===y)?.ativo||'','pt-BR'));
+  if(bmOrd==='za')eqIds.sort((x,y)=>(ativos.find(a=>a.id===y)?.ativo||'').localeCompare(ativos.find(a=>a.id===x)?.ativo||'','pt-BR'));
+  const eBlocks=eqIds.map(eid=>{
     const a=ativos.find(x=>x.id===eid);if(!a)return'';
     const medRaw=b.medicao?.[eid]||{};
     const fin=gEF(a);
-    // Pre-fill dates if not yet set
+    // Always recalculate preFillDates with current dataMob/dataDesmob
     const pf2=preFillDates(a,c,b.competencia);
     const med={dataIni:pf2.dataIni,dataFim:pf2.dataFim,...medRaw};
-    // Auto-save pre-filled dates if BM has no medicao yet
-    if(!b.medicao?.[eid]?.dataIni){
+    // Update if dates changed (dataMob/dataDesmob updated after BM was created)
+    const storedIni=b.medicao?.[eid]?.dataIni;
+    const datesChanged=storedIni&&storedIni!==pf2.dataIni;
+    if(!storedIni||datesChanged){
       if(!b.medicao)b.medicao={};
       if(!b.medicao[eid])b.medicao[eid]={};
+      // Only update if user hasn't manually changed dates (stored === old prefill)
+      // For datesChanged: update dataIni and recalculate prop
       b.medicao[eid].dataIni=pf2.dataIni;
-      b.medicao[eid].dataFim=pf2.dataFim;
-      const propPF=calcPropDatas(pf2.dataIni,pf2.dataFim,c.periodoInicio,c.periodoFim);
+      if(!b.medicao[eid].dataFim||datesChanged)b.medicao[eid].dataFim=pf2.dataFim;
+      const propPF=calcPropDatas(b.medicao[eid].dataIni,b.medicao[eid].dataFim,c.periodoInicio,c.periodoFim);
       b.medicao[eid].prop=propPF;
+      // Update med with new values
+      med.dataIni=b.medicao[eid].dataIni;
+      med.dataFim=b.medicao[eid].dataFim;
       autoSaveBM(b.id);
     }
     const isFR=fin.franquiaReduzida&&fin.mesesFR.includes(bm-1);
@@ -2277,6 +2303,8 @@ function openBM(id){
         <span><i class="ti ti-tool" style="margin-right:5px;vertical-align:-1px;color:#004042"></i>${a.ativo} — ${a.equipamento}</span>
         <div style="display:flex;gap:5px;align-items:center">
           ${isFR?'<span class="badge bg">Fr. reduzida</span>':''}
+          ${(med.descOp||0)>0?`<span class="badge ba" title="Desc. operacional: ${f(med.descOp)}"><i class="ti ti-tool" style="font-size:9px"></i> Desc. op: ${f(med.descOp)}</span>`:''}
+          ${(med.descCom||0)>0?`<span class="badge ba" title="Desc. comercial: ${f(med.descCom)}"><i class="ti ti-building-store" style="font-size:9px"></i> Desc. com: ${f(med.descCom)}</span>`:''}
           ${isEd?`<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue);padding:2px 8px;font-size:10px" onclick="removerEqBM('${b.id}','${eid}')" title="Criar BM separado para este equipamento"><i class="ti ti-scissors"></i> Desmembrar</button>`:''}
         </div>
       </div>
@@ -2345,6 +2373,26 @@ function openBM(id){
     </div>
     <div class="mbd">
       <div class="fst">${isEd?'Medição por equipamento — editável':'Medição por equipamento'}</div>
+      ${(()=>{
+        const modelos=[...new Set((b.equipIds||[]).map(eid=>ativos.find(x=>x.id===eid)?.equipamento||'').filter(Boolean))].sort();
+        const selModels=window['bmModels_'+b.id]||new Set();
+        const modelFilter=modelos.length<2?'':
+          '<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Filtrar por modelo</div>'
+          +'<div style="display:flex;flex-wrap:wrap;gap:6px">'
+          +modelos.map(m=>'<label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:11px;background:'+(selModels.has(m)?'rgba(0,64,66,0.1)':'var(--bg)')+';color:'+(selModels.has(m)?'#004042':'var(--text2)')+'">'
+            +'<input type="checkbox" '+(selModels.has(m)?'checked':'')+' style="accent-color:#004042" data-bid="'+b.id+'" data-model="'+encodeURIComponent(m)+'" onchange="bmToggleModel(this.dataset.bid,decodeURIComponent(this.dataset.model))">'
+            +m+'</label>').join('')
+          +'</div></div>';
+        return modelFilter;
+      })()}
+      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+        <select class="sel" style="width:150px" onchange="window['bmOrd_'+this.dataset.bid]=this.value;openBM(this.dataset.bid)" data-bid="${b.id}">
+          <option value="">Ordem original</option>
+          <option value="az" ${bmOrd==='az'?'selected':''}>A→Z</option>
+          <option value="za" ${bmOrd==='za'?'selected':''}>Z→A</option>
+        </select>
+        <span style="font-size:11px;color:var(--text3)">${eqIds.length}/${(b.equipIds||[]).length} equip.</span>
+      </div>
       ${eBlocks}
       <div class="rb" id="bmr-${b.id}">
         <div class="rbt"><i class="ti ti-calculator" style="margin-right:5px;vertical-align:-1px"></i>Resumo do BM</div>
@@ -2890,7 +2938,11 @@ function rI(){
   const bPend=bs.filter(b=>b.competencia===curComp&&b.status!==SFAT&&b.status!==SCAN).length;
   const bPendAll=bs.filter(b=>b.competencia>='2026-06'&&b.status!==SFAT&&b.status!==SCAN).length;
   const retrTotal=bs.filter(b=>b.competencia>='2026-06'&&b.retrabalho).length;
-  const sC3=STAGES.map(s=>({s,n:bs.filter(b=>b.competencia>='2026-06'&&b.status===s).length}));
+  const sC3=STAGES.map(s=>{
+    const bmsSt=bs.filter(b=>b.competencia>='2026-06'&&b.status===s);
+    const val=bmsSt.reduce((sum,b)=>sum+(b.valorFaturado||cBMV(b)),0);
+    return{s,n:bmsSt.length,val};
+  });
 
   const el=document.getElementById('ic');if(!el)return;
   el.innerHTML=`
@@ -2934,8 +2986,8 @@ function rI(){
     </div>
   </div>
   <div class="sl">Por etapa (a partir de Junho/2026)</div>
-  <div class="tw" style="margin-bottom:16px"><table><thead><tr><th>Etapa</th><th>BMs</th><th>Distribuição</th></tr></thead><tbody>
-    ${sC3.filter(d=>d.n>0).map(d=>{const pct=Math.round(d.n/Math.max(1,bPend)*100);return'<tr><td style="font-weight:500;color:var(--text)">'+d.s+'</td><td style="text-align:center"><span class="badge '+(SC[d.s]||'bgr')+'">'+d.n+'</span></td><td style="min-width:150px"><div class="pb"><div class="pf" style="width:'+pct+'%;background:#F37021"></div></div></td></tr>';}).join('')}
+  <div class="tw" style="margin-bottom:16px"><table><thead><tr><th>Etapa</th><th>BMs</th><th>Valor em aberto</th><th>Distribuição</th></tr></thead><tbody>
+    ${sC3.filter(d=>d.n>0).map(d=>{const pct=Math.round(d.n/Math.max(1,bPend)*100);return'<tr><td style="font-weight:500;color:var(--text)">'+d.s+'</td><td style="text-align:center"><span class="badge '+(SC[d.s]||'bgr')+'">'+d.n+'</span></td><td style="font-weight:600;color:var(--text)">'+f(d.val)+'</td><td style="min-width:150px"><div class="pb"><div class="pf" style="width:'+pct+'%;background:#F37021"></div></div></td></tr>';}).join('')}
   </tbody></table></div>`;
 
   if(!hD.length)return;
