@@ -2067,7 +2067,7 @@ function rKC(b,cur){
       ${hasDescPend?'<span class="badge ba">Com desconto</span>':''}
       ${perBadges}
     </div>
-    ${b.discAnaliseAcao&&b.discAnaliseJustif?`<div style="margin:4px 0 6px;padding:6px 8px;border-radius:4px;background:${b.discAnaliseAcao==='approve'?'rgba(42,140,110,0.08)':'rgba(224,82,82,0.08)'};border-left:2px solid ${b.discAnaliseAcao==='approve'?'#2A8C6E':'var(--red)'}"><span style="font-size:10px;font-weight:700;color:${b.discAnaliseAcao==='approve'?'#2A8C6E':'var(--red)'}">${b.discAnaliseAcao==='approve'?'✓':'✗'} ${b.discAnalisePor||'—'}: </span><span style="font-size:10px;color:var(--text2)">${b.discAnaliseJustif}</span></div>`:''}
+    ${b.discAnaliseAcao&&b.discAnaliseJustif?`<div style="margin:4px 0 6px;padding:6px 8px;border-radius:4px;background:${b.discAnaliseAcao==='approve'?'rgba(42,140,110,0.08)':'rgba(224,82,82,0.08)'};border-left:2px solid ${b.discAnaliseAcao==='approve'?'#2A8C6E':'var(--red)'}"><span style="font-size:10px;font-weight:700;color:${b.discAnaliseAcao==='approve'?'#2A8C6E':'var(--red)'}">${b.discAnaliseAcao==='approve'?'✓':'✗'} ${b.discAnalisePor||'—'}: </span><span style="font-size:10px;color:var(--text2)">${b.discAnaliseJustif}</span>${b.discAnexo?` <button class="bti" style="padding:1px 5px;font-size:10px" onclick="event.stopPropagation();verAnexoBM('${b.id}')"><i class="ti ti-paperclip"></i></button>`:''}</div>`:''}
     <div class="kdf">
       <div class="kdv">${f(valor)}</div>
       <div class="kda">
@@ -2362,7 +2362,7 @@ function openBM(id){
       <div class="ebt"><span><i class="ti ti-tool" style="margin-right:5px;vertical-align:-1px;color:#004042"></i>${a.ativo} — ${a.equipamento}</span>${isFR?'<span class="badge bg">Fr. reduzida</span>':''}</div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:11px">${[['Data início',med.dataIni?fd(med.dataIni):'−'],['Horímetro ini.',med.hIni!=null?med.hIni+'h':'−'],['Data fim',med.dataFim?fd(med.dataFim):'−'],['Horímetro fin.',med.hFim!=null?med.hFim+'h':'−'],['Horas trab.',horas+'h'],['Franquia prop.',fP+'h'],['Excedente',eH>0?eH+'h':'−'],['Proporcional',Math.round(prop*100)+'%']].map(([l,v])=>'<div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:2px">'+l+'</div><div style="font-weight:600;color:var(--text)">'+v+'</div></div>').join('')}</div>
       <div class="cb2"><div class="cr"><span>Mensalidade</span><span>${f(mens)}</span></div>${fin.franquiaLivre?'<div class="cr"><span>Franquia</span><span style="color:#2A8C6E">Livre</span></div>':eV>0?'<div class="cr"><span>Valor excedente</span><span style="color:#F37021">'+f(eV)+'</span></div>':''}</div>
-      ${(med.descCom||0)+(med.descOp||0)>0?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px">${med.descCom>0?'<div class="cr"><span>Desc. comercial</span><span style="color:#F37021">−'+f(med.descCom)+'</span></div>':''}${med.descOp>0?'<div class="cr"><span>Desc. operacional</span><span style="color:#F37021">−'+f(med.descOp)+'</span></div>':''}</div>`:''}
+      ${(med.descCom||0)+(med.descOp||0)>0?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px">${med.descCom>0?'<div class="cr"><span>Desc. comercial</span><span style="color:#F37021">−'+f(med.descCom)+'</span></div>'+(med.obsDescCom?'<div style="font-size:10px;color:var(--text2);padding:3px 8px;background:rgba(243,112,33,0.06);border-radius:4px;margin:2px 0">'+med.obsDescCom+'</div>':''):''}${med.descOp>0?'<div class="cr"><span>Desc. operacional</span><span style="color:#F37021">−'+f(med.descOp)+'</span></div>'+(med.obsDescOp?'<div style="font-size:10px;color:var(--text2);padding:3px 8px;background:rgba(243,112,33,0.06);border-radius:4px;margin:2px 0">'+med.obsDescOp+'</div>':''):''}</div>`:''}
     </div>`;
   }).join('');
   const{tM,tE,dC,dO,tot}=gBMS(b);
@@ -2371,6 +2371,7 @@ function openBM(id){
       <div><div class="mht">${c.nomeContrato}</div><div class="mhs">${c.nomeCliente} · Competência: ${yml(by,bm)}</div></div>
       <div style="display:flex;align-items:center;gap:7px"><span class="badge ${SC[b.status]||'bgr'}">${b.status}</span><button class="bti" onclick="closeBM()"><i class="ti ti-x"></i></button></div>
     </div>
+    ${b.discAnaliseAcao?`<div style="padding:8px 16px;background:${b.discAnaliseAcao==='approve'?'rgba(42,140,110,0.07)':'rgba(224,82,82,0.07)'};border-bottom:1px solid ${b.discAnaliseAcao==='approve'?'rgba(42,140,110,0.2)':'rgba(224,82,82,0.2)'}"><span style="font-size:11px;font-weight:700;color:${b.discAnaliseAcao==='approve'?'#2A8C6E':'var(--red)'}">${b.discAnaliseAcao==='approve'?'✓ Desconto APROVADO':'✗ Desconto NÃO APROVADO'} — ${b.discAnalisePor||'—'}</span>${b.discAnaliseJustif?'<span style="font-size:11px;color:var(--text2);margin-left:8px">'+b.discAnaliseJustif+'</span>':''}${b.discAnexo?` <button class="bti" style="padding:1px 6px;font-size:10px" onclick="verAnexoBM('${b.id}')"><i class="ti ti-paperclip"></i></button>`:''}</div>`:''}
     <div class="mbd">
       <div class="fst">${isEd?'Medição por equipamento — editável':'Medição por equipamento'}</div>
       ${(()=>{
@@ -2503,6 +2504,13 @@ function anexarDesc(event,bmId,eid,tipo){
     span.innerHTML=`<i class="ti ti-paperclip"></i> ${file.name} <button class="bti" style="padding:1px 5px;font-size:10px" onclick="verAnexo('${bmId}','${eid}','${tipo}')">Ver</button>`;
   };
   reader.readAsDataURL(file);
+}
+
+function verAnexoBM(bmId){
+  const b=bs.find(x=>x.id===bmId);
+  const anexo=b?.discAnexo;
+  if(!anexo){alert('Nenhum anexo encontrado.');return;}
+  verAnexoInline(anexo.data,anexo.type);
 }
 function verAnexoInline(data,type){
   try{
@@ -3297,6 +3305,8 @@ function renderApproverView(){
         <div class="ff" style="margin-bottom:12px">
           <label class="fl">Justificativa da decisão *</label>
           <textarea id="justif-${b.id}" rows="2" placeholder="Informe o motivo da sua decisão de aprovação ou reprovação..."></textarea>
+          <label class="fl" style="margin-top:8px">Anexo (opcional)</label>
+          <input type="file" id="file-${b.id}" accept="image/*,.pdf" style="font-size:11px;margin-top:4px">
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-p" style="background:#2A8C6E;border-color:#004042" onclick="confirmarAprovacao('${b.id}','approve')">
@@ -3323,12 +3333,19 @@ function renderApproverView(){
 async function confirmarAprovacao(bmId,action){
   const justif=document.getElementById('justif-'+bmId)?.value.trim();
   if(!justif){alert('A justificativa é obrigatória.');return;}
+  const fileEl=document.getElementById('file-'+bmId);
+  const file=fileEl?.files?.[0];
+  let decAnexo2=null;
+  if(file){
+    if(file.size>2*1024*1024){alert('Arquivo muito grande. Máximo 2MB.');return;}
+    await new Promise(res=>{const r=new FileReader();r.onload=e=>{decAnexo2={name:file.name,type:file.type,data:e.target.result};res();};r.readAsDataURL(file);});
+  }
   const b=bs.find(x=>x.id===bmId);
   const novoStatus=action==='approve'?'Desconto Aprovado':'Desconto Não Aprovado';
   const tipo=_user.role==='op'?'desc. operacional':'desc. comercial';
   addHist(b,action==='approve'?'aprovação':'reprovação',b.status,novoStatus,`${tipo.toUpperCase()} — ${justif}`);
   b.status=novoStatus;
-  b.discAnaliseAcao=action;b.discAnaliseJustif=justif;b.discAnalisePor=_user.nome;
+  b.discAnaliseAcao=action;b.discAnaliseJustif=justif;b.discAnalisePor=_user.nome;if(decAnexo2)b.discAnexo=decAnexo2;
   await sB(b);renderApproverView();
 }
 
