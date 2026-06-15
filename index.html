@@ -625,6 +625,7 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
         <th class="sortable" onclick="sortA('ultCobrExc')">Últ. cobr. exc.<span class="si"></span></th>
         <th>Fr. reduzida</th><th>Meses FR</th><th>Preço FR</th>
         <th class="sortable" onclick="sortA('dataMob')">Mobilização<span class="si"></span></th>
+        <th class="sortable" onclick="sortA('dataDesmob')">Desmobilização<span class="si"></span></th>
         <th>Horímetro mob.</th><th></th>
       </tr></thead><tbody id="tba"></tbody></table></div>
     </div>
@@ -1367,6 +1368,7 @@ function rA(){
       <td>${fin.franquiaReduzida?frM:'-'}</td>
       <td>${fin.franquiaReduzida?f(fin.precoFR):'-'}</td>
       <td>${fd(a.dataMob)}</td>
+      <td>${a.dataDesmob?fd(a.dataDesmob):'—'}</td>
       <td>${a.horimetroMob!=null?a.horimetroMob.toLocaleString('pt-BR')+'h':'-'}</td>
       <td><div style="display:flex;gap:4px">
         <button class="bti" onclick="openEM('${a.id}')"><i class="ti ti-edit"></i></button>
@@ -1391,8 +1393,8 @@ function rC(){
   filtered=[...filtered].sort((a,b)=>{
     const aAtivos=ativos.filter(x=>x.contractId===a.id);
     const bAtivos=ativos.filter(x=>x.contractId===b.id);
-    const aV=aAtivos.filter(x=>x.status==='locado').reduce((s,x)=>s+(x.mensalidade||0),0);
-    const bV=bAtivos.filter(x=>x.status==='locado').reduce((s,x)=>s+(x.mensalidade||0),0);
+    const aV=aAtivos.filter(x=>a.status!=='disponível'&&a.status!=='venda'&&a.status!=='desmobilizado').reduce((s,x)=>s+(x.mensalidade||0),0);
+    const bV=bAtivos.filter(x=>a.status!=='disponível'&&a.status!=='venda'&&a.status!=='desmobilizado').reduce((s,x)=>s+(x.mensalidade||0),0);
     switch(sortV){
       case 'nome-asc':return a.nomeContrato.localeCompare(b.nomeContrato,'pt-BR');
       case 'nome-desc':return b.nomeContrato.localeCompare(a.nomeContrato,'pt-BR');
@@ -1406,7 +1408,7 @@ function rC(){
   });
   const el=document.getElementById('cl');const cnt=document.getElementById('cc');
   // Total value KPI
-  const totalMens=ativos.filter(a=>a.status==='locado'&&a.contractId).reduce((s,a)=>s+(a.mensalidade||0),0);
+  const totalMens=ativos.filter(a=>a.status!=='disponível'&&a.status!=='venda'&&a.status!=='desmobilizado'&&a.contractId).reduce((s,a)=>s+(a.mensalidade||0),0);
   const totalAtivosLoc=ativos.filter(a=>a.status==='locado').length;
   const kpiEl=document.getElementById('c-kpi');
   if(kpiEl)kpiEl.innerHTML=`
@@ -1435,7 +1437,7 @@ function rC(){
     const m1=isM1(c,null);const open=window['cc2_'+c.id];
     const cAtivos=ativos.filter(a=>a.contractId===c.id);
     const loc=cAtivos.filter(a=>a.status==='locado').length;
-    const tM=cAtivos.filter(a=>a.status==='locado').reduce((s,a)=>s+(a.mensalidade||0),0);
+    const tM=cAtivos.filter(a=>a.status!=='disponível'&&a.status!=='venda'&&a.status!=='desmobilizado').reduce((s,a)=>s+(a.mensalidade||0),0);
     return`<div class="cb3" style="margin-bottom:10px">
       <div class="cbh" style="cursor:pointer" onclick="tCC('${c.id}')">
         <div style="flex:1"><div style="display:flex;align-items:center;gap:8px"><i class="ti ti-chevron-${open?'up':'down'}" style="color:var(--text3);font-size:13px"></i>
