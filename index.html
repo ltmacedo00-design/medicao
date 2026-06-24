@@ -561,12 +561,12 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
     <button class="nav-item active" onclick="goPage('ativos',this)"><i class="ti ti-tool"></i> Ativos</button>
     <button class="nav-item" onclick="goPage('contratos',this)"><i class="ti ti-file-text"></i> Contratos</button>
     <div class="nav-section">Faturamento</div>
-    <button class="nav-item" onclick="goPage('previsto',this)"><i class="ti ti-calendar-stats"></i> Previsto</button>
     <button class="nav-item" onclick="goPage('consolidado',this)"><i class="ti ti-table-alias"></i> Consolidado</button>
     <div class="nav-section">Processo</div>
     <button class="nav-item" onclick="goPage('kanban',this)"><i class="ti ti-layout-kanban"></i> Kanban BMs</button>
     <div class="nav-section">Gestão</div>
     <button class="nav-item" onclick="goPage('indicadores',this)"><i class="ti ti-chart-bar"></i> Indicadores</button>
+    <button class="nav-item" onclick="goPage('fleet',this)"><i class="ti ti-truck"></i> Fleet Locado Mês</button>
     <button class="nav-item" onclick="openAdmLogin(this)"><i class="ti ti-shield-lock"></i> ADM</button>
     <div style="margin-top:auto;padding:16px 18px 0;border-top:1px solid rgba(93,191,160,0.08);">
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.18em;color:rgba(93,191,160,0.5);margin-bottom:8px;">Backup</div>
@@ -629,6 +629,13 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
         <th>Horímetro mob.</th><th></th>
       </tr></thead><tbody id="tba"></tbody></table></div>
     </div>
+    <!-- FLEET LOCADO MÊS -->
+    <div id="page-fleet" class="page">
+      <div class="topbar">
+        <span class="page-title">Fleet Locado Mês</span>
+      </div>
+      <div id="fleet-content" style="padding:16px"></div>
+    </div>
     <!-- CONTRATOS -->
     <div id="page-contratos" class="page">
       <div class="topbar">
@@ -658,26 +665,7 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
       <div id="c-kpi" class="sc-row" style="grid-template-columns:repeat(2,1fr);max-width:500px;margin-bottom:14px"></div>
       <div id="cl"></div>
     </div>
-    <!-- PREVISTO -->
-    <div id="page-previsto" class="page">
-      <div class="tb"><button class="tbb act" onclick="stab('prev','pv',this)">Previsto</button><button class="tbb" onclick="stab('prev','pc',this)">Consolidado</button></div>
-      <div id="sp-prev-pv" class="sp2 act">
-        <div class="topbar"><div class="topbar-left">
-          <div class="mn"><button onclick="chM('prev',-1)"><i class="ti ti-chevron-left"></i></button><div class="mnl" id="pml"></div><button onclick="chM('prev',1)"><i class="ti ti-chevron-right"></i></button></div>
-          <div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Filtrar contrato, cliente..." id="spv" oninput="rP()" style="width:220px"></div>
-          <button class="btn btn-sm" onclick="exportarPrevisto()"><i class="ti ti-table-export"></i> Exportar</button>
-        </div></div>
-        <div id="scp" class="sc-row sc-5"></div><div id="bls"></div><div id="pvl"></div>
-      </div>
-      <div id="sp-prev-pc" class="sp2">
-        <div class="topbar"><div class="topbar-left">
-          <select class="sel" id="cms" onchange="rCons()"></select>
-          <div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Filtrar contrato, cliente..." id="scons" oninput="rCons()" style="width:220px"></div>
-        </div></div>
-        <div id="scc" class="sc-row sc-5"></div>
-        <div class="tw mh"><table><thead><tr><th>Contrato</th><th>Nº contrato</th><th>Cliente</th><th>SAP</th><th>Ativo</th><th>Equipamento</th><th>Tipo</th><th>M/M+1</th><th>Dt. início</th><th>Dt. fim</th><th>Prop.</th><th>Prev. mens.</th><th>Mens. fechada</th><th>Hrs exc.</th><th>Valor exc.</th><th class="sc2">Desc. com.</th><th>Desc. op.</th><th class="sc2">Total BM</th><th>Performance</th><th class="sc2">Nº NF Mens.</th><th>Data NF Mens.</th><th class="sc2">Nº NF Exc.</th><th>Data NF Exc.</th><th class="sc2">Status BM</th></tr></thead><tbody id="tbc"></tbody></table></div>
-      </div>
-    </div>
+    
     <!-- CONSOLIDADO -->
     <div id="page-consolidado" class="page">
       <div class="topbar">
@@ -685,6 +673,9 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
           <div class="mn"><button onclick="chM('cons',-1)"><i class="ti ti-chevron-left"></i></button><div class="mnl" id="cml"></div><button onclick="chM('cons',1)"><i class="ti ti-chevron-right"></i></button></div>
           <div class="sw"><i class="ti ti-search"></i><input type="text" placeholder="Buscar..." id="sco" oninput="rCP()"></div>
           <select class="sel" id="fsc" onchange="rCP()"><option value="">Todos os status</option></select>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer;white-space:nowrap">
+            <input type="checkbox" id="fbl" onchange="rCP()" style="accent-color:var(--red)"> Só backlog
+          </label>
           <span id="cco" style="font-size:11px;color:var(--text3)"></span>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
@@ -696,7 +687,7 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
         </div>
       </div>
       <div id="scop" class="sc-row sc-5"></div>
-      <div class="tw mh"><table><thead><tr><th>Contrato</th><th>Nº contrato</th><th>Cliente</th><th>SAP</th><th>Ativo</th><th>Equipamento</th><th>Tipo</th><th>M/M+1</th><th>Dt. início</th><th>Dt. fim</th><th>Prop.</th><th>Prev. mens.</th><th>Mens. fechada</th><th>Hrs exc.</th><th>Valor exc.</th><th class="sc2">Desc. com.</th><th>Desc. op.</th><th class="sc2">Total BM</th><th>Performance</th><th class="sc2">Nº NF Mens.</th><th>Data NF Mens.</th><th class="sc2">Nº NF Exc.</th><th>Data NF Exc.</th><th class="sc2">Status BM</th></tr></thead><tbody id="tbcp"></tbody></table></div>
+      <div class="tw mh"><table><thead><tr><th>Contrato</th><th>Nº contrato</th><th>Cliente</th><th>SAP</th><th>Ativo</th><th>Equipamento</th><th>Tipo</th><th>M/M+1</th><th>Backlog</th><th>Dt. início</th><th>Dt. fim</th><th>Prop.</th><th>Prev. mens.</th><th>Mens. fechada</th><th>Hrs exc.</th><th>Valor exc.</th><th class="sc2">Desc. com.</th><th>Obs. com.</th><th>Desc. op.</th><th>Obs. op.</th><th>Contestação</th><th>Just. contest.</th><th>Vl. adicional</th><th class="sc2">Total BM</th><th>Performance</th><th class="sc2">Nº NF Mens.</th><th>Data NF Mens.</th><th class="sc2">Nº NF Exc.</th><th>Data NF Exc.</th><th class="sc2">Status BM</th></tr></thead><tbody id="tbcp"></tbody></table></div>
     </div>
     <!-- KANBAN -->
     <div id="page-kanban" class="page">
@@ -755,6 +746,13 @@ th.sortable:not(.asc):not(.desc) .si::after{content:'⇅';}
             <button class="btn" onclick="dlJSON()"><i class="ti ti-database-export"></i> Exportar JSON</button>
             <button class="btn" onclick="dlHTML()"><i class="ti ti-file-download"></i> Baixar HTML</button>
           </div>
+
+            <div class="sl">Histórico de Movimentações de Ativos</div>
+            <div class="ht"><i class="ti ti-info-circle"></i> Todas as movimentações registradas automaticamente (mobilizações, desmobilizações, desvínculos).</div>
+            <button class="btn" onclick="rHistMov()"><i class="ti ti-refresh"></i> Carregar histórico</button>
+            <button class="btn" onclick="exportHistMov()" style="margin-left:8px"><i class="ti ti-table-export"></i> Exportar Excel</button>
+            <div id="hist-mov-table" style="margin-top:12px"></div>
+            <div style="height:16px"></div>
           <div class="sl">Diagnóstico</div>
           <div class="ht"><i class="ti ti-info-circle"></i> Compara os valores de Previsto vs Consolidado por ativo para identificar divergências.</div>
           <button class="btn" style="color:var(--blue);border-color:var(--blue)" onclick="diagPrevisto()"><i class="ti ti-bug"></i> Diagnóstico Previsto vs Consolidado</button>
@@ -900,6 +898,8 @@ function aM(y,m,d){let n=m+d,ny=y;if(n>12){n-=12;ny++;}if(n<1){n+=12;ny--;}retur
 
 // ═══════════════ STATE ═══════════════
 let ativos=[],cs=[],bs=[],me={},fxO=null;
+let _ativoIdx=new Map(),_ativosByC=new Map();
+function _buildIdx(){_ativoIdx=new Map(ativos.map(a=>[a.id,a]));_ativosByC=new Map();ativos.forEach(a=>{if(!a.contractId)return;if(!_ativosByC.has(a.contractId))_ativosByC.set(a.contractId,[]);_ativosByC.get(a.contractId).push(a);});}
 let mo={prev:{y:2026,m:6},kanban:{y:2026,m:6},cons:{y:2026,m:6}};
 let ic2={},srt=[];
 
@@ -947,7 +947,33 @@ async function lAll_old(){
 }
 function setupL(){setInterval(()=>syncFirebase(),30000);}
 
-function rAll(){if(!_user)return;if(_user.role==='op'||_user.role==='com'){renderApproverView();return;}rA();rC();rP();rCons();rCP();rK();popCF();}
+let _bmsLoaded=false;
+let _rAllTimer=null;
+function rAll(){clearTimeout(_rAllTimer);_rAllTimer=setTimeout(_doRAll,60);}
+function _doRAll(){
+  if(!_user)return;
+  _buildIdx();_bmFinIdx=null;_bcrCache={};syncM1Fixo();
+  if(_user.role==='op'||_user.role==='com'){renderApproverView();return;}
+  // Só renderiza aba ativa — outras renderizam ao navegar
+  const _ap=document.querySelector('.page.active');
+  const _pid=_ap?_ap.id.replace('page-',''):'ativos';
+  rA();
+  if(_pid==='contratos')rC();
+  if(_pid==='consolidado'){rCons();rCP();}
+  if(_pid==='kanban')rK();
+  if(_pid==='fleet')rFleet();
+  if(_pid==='indicadores')rI();
+  if(_pid==='ativos'){}
+  popCF();
+  if(!_bmsLoaded){
+    _bmsLoaded=true;
+    const _t=new Date(),_y=_t.getFullYear(),_m=_t.getMonth()+1;
+    const _pm=_m===1?{y:_y-1,m:12}:{y:_y,m:_m-1};
+    Promise.all([autoCreateBMs(_y,_m),autoCreateBMs(_pm.y,_pm.m)]).then(res=>{
+      if(res.some(Boolean)){_bmFinIdx=null;_bcrCache={};rK();rP();rCons();}
+    });
+  }
+}
 
 // ═══════════════ SORT ═══════════════
 let sortState={col:null,dir:'asc'};
@@ -1058,7 +1084,7 @@ function preFillDates(a,c,bm){
 }
 
 // ═══════════════ NAVIGATION ═══════════════
-function goPage(id,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.getElementById('page-'+id).classList.add('active');btn.classList.add('active');if(id==='indicadores')rI();}
+function goPage(id,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.getElementById('page-'+id).classList.add('active');btn.classList.add('active');if(id==='indicadores')rI();if(id==='fleet')rFleet();if(id==='contratos')rC();if(id==='consolidado'){_bcrCache={};rCons();rCP();}if(id==='kanban')rK();}
 function stab(pg,sub,btn){document.querySelectorAll('#page-'+pg+' .tbb').forEach(b=>b.classList.remove('act'));document.querySelectorAll('#page-'+pg+' .sp2').forEach(p=>p.classList.remove('act'));document.getElementById('sp-'+pg+'-'+sub).classList.add('act');btn.classList.add('act');if(sub==='pc')rCons();}
 function chM(w,d){const r=aM(mo[w].y,mo[w].m,d);mo[w]={y:r.y,m:r.m};if(w==='prev')rP();if(w==='kanban'){autoCreateBMs(mo.kanban.y,mo.kanban.m).then(()=>rK());}if(w==='cons')rCP();}
 function popCF(){const s=document.getElementById('fca');if(!s)return;const cur=s.value;s.innerHTML='<option value="">Todos os contratos</option>'+cs.map(c=>`<option value="${c.id}" ${cur===c.id?'selected':''}>${c.nomeContrato}</option>`).join('');}
@@ -1071,11 +1097,17 @@ function isFranqLivre(a){
 }
 function gEF(a){
   const livre=isFranqLivre(a);
-  const mens=parseFloat(a.mensalidade)||0;
-  const hc=parseFloat(a.horaContratual)||0;
-  // porHora=true when no mensalidade but has horaContratual
+  let mens=parseFloat(a.mensalidade)||0;
+  let fq=parseFloat(a.franquia)||0;
+  let hc=parseFloat(a.horaContratual)||0;
+  // For CALCULATIONS only: recover from historico/BM if cleared
+  if(mens===0&&hc===0){
+    const snap=(a.historico||[]).slice().reverse().find(h=>(h.mensalidade||0)>0||(h.horaContratual||0)>0);
+    if(snap){mens=snap.mensalidade||0;fq=snap.franquia||fq;hc=snap.horaContratual||0;}
+    else{if(!_bmFinIdx)buildBmFinIdx();const f2=_bmFinIdx[a.id];if(f2){mens=f2.mensalidade||0;}}
+  }
   const porHora=mens===0&&hc>0;
-  return{sla:a.sla||'',mensalidade:mens,franquia:livre?0:(parseFloat(a.franquia)||0),horaContratual:hc,faixas:a.faixas||[{limite:null,preco:0}],franquiaReduzida:a.franquiaReduzida||false,mesesFR:a.mesesFR||[],precoFR:a.precoFR||0,perExc:a.perExc||'mensal',tipoExc:a.tipoExc||'mês a mês',ultCobrExc:a.ultCobrExc||'',m1Fixo:a.m1Fixo||false,franquiaLivre:livre,porHora};
+  return{sla:a.sla||'',mensalidade:mens,franquia:livre?0:fq,horaContratual:hc,faixas:a.faixas||[{limite:null,preco:0}],franquiaReduzida:a.franquiaReduzida||false,mesesFR:a.mesesFR||[],precoFR:a.precoFR||0,perExc:a.perExc||'mensal',tipoExc:a.tipoExc||'mês a mês',ultCobrExc:a.ultCobrExc||'',m1Fixo:a.m1Fixo||false,franquiaLivre:livre,porHora};
 }
 function cExc(faixas,franquia,horas){
   const exc=Math.max(0,horas-franquia);if(exc===0)return 0;
@@ -1182,6 +1214,7 @@ function deveCobrarExc(perExc,ultCobrExc,competencia){
 function calcPropDatas(dataIni,dataFim,periodoInicio,periodoFim){
   if(!dataIni||!dataFim)return 1;
   const ini=new Date(dataIni),fim=new Date(dataFim);
+  if(fim<ini)return 0; // invalid range
   const worked=Math.round((fim-ini)/86400000)+1;
   const pi=periodoInicio||1,pf=periodoFim||30;
   const periodDays=pi<=pf?pf-pi+1:(31-pi)+pf;
@@ -1222,16 +1255,49 @@ function calcPropMob(a,c,year,month,m1Override){
   }
   if(effEnd<effStart)return 0; // demobilized before mobilization in this period
 
-  const total=Math.round((pEnd-pStart)/86400000)+1;
+  // Period length from contract definition (consistent with calcPropDatas)
+  const total=pi<=pf?pf-pi+1:(31-pi)+pf;
   const work=Math.round((effEnd-effStart)/86400000)+1;
   return Math.round(Math.min(1,Math.max(0,work/total))*1000)/1000;
 }
+
+// Save financial snapshot inside BM medição for all equipIds
+// Called on BM creation and first open — protects against ativo data being cleared later
+function snapFinBM(bm){
+  let changed=false;
+  if(!bm.medicao)bm.medicao={};
+  (bm.equipIds||[]).forEach(eid=>{
+    if(!bm.medicao[eid])bm.medicao[eid]={};
+    if(bm.medicao[eid]._fin)return; // already snapped
+    const a=_ativoIdx.get(eid);if(!a)return;
+    const fin=gEF(a);
+    const c=cs.find(x=>x.id===a.contractId||x.id===bm.contractId);
+    bm.medicao[eid]._fin={
+      mensalidade:fin.mensalidade,franquia:fin.franquia,
+      horaContratual:fin.horaContratual,faixas:fin.faixas,
+      precoFR:fin.precoFR,perExc:fin.perExc,tipoExc:fin.tipoExc,
+      sla:fin.sla,contractId:bm.contractId,
+      nomeContrato:c?.nomeContrato||'',nomeCliente:c?.nomeCliente||''
+    };
+    changed=true;
+  });
+  if(changed)autoSaveBM(bm.id);
+}
 function gBMS(bm){
-  const[,m]=bm.competencia.split('-').map(Number);let tM=0,tE=0,tDC=0,tDO=0,tAd=0;
+  const[,m]=bm.competencia.split('-').map(Number);let tM=0,tE=0,tDC=0,tDO=0,tAd=0,tCont=0;
   (bm.equipIds||[]).forEach(eid=>{
     const med=bm.medicao?.[eid]||{};const p=med.prop??1;
-    const a=ativos.find(x=>x.id===eid);if(!a)return;
-    const fin=gEF(a);const fr=fin.franquiaReduzida&&fin.mesesFR.includes(m-1);
+    const a=_ativoIdx.get(eid);if(!a)return;
+    // _fin = snapshot taken at BM creation/open — survives ativo being cleared
+    const _f=med._fin;
+    let fin=gEF(a);
+    if(_f&&(fin.mensalidade||0)===0&&(fin.horaContratual||0)===0){
+      fin={...fin,mensalidade:_f.mensalidade||0,franquia:_f.franquia||fin.franquia,
+        horaContratual:_f.horaContratual||0,faixas:_f.faixas||fin.faixas,
+        precoFR:_f.precoFR||fin.precoFR,perExc:_f.perExc||fin.perExc,
+        tipoExc:_f.tipoExc||fin.tipoExc,
+        porHora:(_f.mensalidade||0)===0&&(_f.horaContratual||0)>0};
+    }const fr=fin.franquiaReduzida&&fin.mesesFR.includes(m-1);
     const horas=Math.max(0,(med.hFim||0)-(med.hIni||0));
     if(fin.porHora){
       tM+=fin.horaContratual*horas;
@@ -1246,9 +1312,9 @@ function gBMS(bm){
         }
       }
     }
-    tDC+=med.descCom||0;tDO+=med.descOp||0;tAd+=med.valorAdicional||0;
+    tDC+=med.descCom||0;tDO+=med.descOp||0;tAd+=med.valorAdicional||0;tCont+=med.contestacao||0;
   });
-  return{tM,tE,dC:tDC,dO:tDO,tAd,tot:tM+tE+tAd-tDC-tDO};
+  return{tM,tE,dC:tDC,dO:tDO,tAd,tCont,tot:tM+tE+tAd-tDC-tDO-tCont};
 }
 function cBMV(bm){const{tM,tE,dC,dO}=gBMS(bm);return tM+tE-dC-dO;}
 
@@ -1263,7 +1329,7 @@ function cBLV(bm){
   const[by,bm2]=bm.competencia.split('-').map(Number);
   let total=0;
   (bm.equipIds||[]).forEach(eid=>{
-    const a=ativos.find(x=>x.id===eid);if(!a)return;
+    const a=_ativoIdx.get(eid);if(!a)return;
     const fin=gEF(a);if(!fin.mensalidade&&!fin.porHora)return;
     const useM1=bm.manual?false:isM1(c,a);
     let prop=calcPropMob(a,c,by,bm2,useM1);
@@ -1277,7 +1343,7 @@ function hExc(bm){
   if(!bm.medicao)return false;
   return(bm.equipIds||[]).some(eid=>{
     const med=bm.medicao[eid];if(!med)return false;
-    const a=ativos.find(x=>x.id===eid);if(!a)return false;
+    const a=_ativoIdx.get(eid);if(!a)return false;
     const fin=gEF(a);
     if(fin.franquiaLivre||fin.porHora)return false;
     if(!deveCobrarExc(fin.perExc,fin.ultCobrExc,bm.competencia))return false;
@@ -1293,39 +1359,131 @@ function getComp(c,a,y,m){
 }
 
 // ═══════════════ AUTO-CREATE BMs ═══════════════
+function isM1Contrato(c){return !!(c.m1Fixo||(c.periodoInicio>c.periodoFim));}
+
+// Sync m1Fixo from contract to ativo (run on data load)
+function syncM1Fixo(){
+  // Fix m1Fixo in memory only (fast — no Firebase writes)
+  ativos.forEach(a=>{
+    if(!a.contractId){a.m1Fixo=false;return;}
+    const c=cs.find(x=>x.id===a.contractId);
+    if(c)a.m1Fixo=!!c.m1Fixo;
+  });
+}
+
 async function autoCreateBMs(year,month){
   let changed=false;
+  if(!cs.length||!ativos.length)return false;
+  const comp=ym(year,month);
   for(const c of cs){
-    const contractAtivos=ativos.filter(a=>{
-      if(a.contractId!==c.id)return false;
-      if(a.status==='disponível')return false;
-      if(a.dataMob){
-        const mob=new Date(xlDate(String(a.dataMob||"")));
-        const pf=c.periodoFim||20;
-        const pEnd=new Date(year,month-1,pf);
-        if(mob>pEnd)return false;
-      }
-      return true;
-    });
-    if(!contractAtivos.length)continue;
-    // M+1: work was done in (year,month-1), billing is in (year,month)
-    // So competencia = (year,month) for both — M+1 and normal both appear in current month
-    const comp=ym(year,month);
-    const existing=bs.find(b=>b.contractId===c.id&&b.competencia===comp&&b.status!==SCAN);
-    if(!existing){
-      const nb={id:uid(),contractId:c.id,competencia:comp,status:'Ag. Fechamento',equipIds:contractAtivos.map(a=>a.id),medicao:{},dataEntrada:new Date().toISOString()};
+    // ── Período de trabalho deste mês de faturamento ──
+    const m1=isM1Contrato(c);
+    const wY=m1?(month===1?year-1:year):year;
+    const wM=m1?(month===1?12:month-1):month;
+    const pi=c.periodoInicio||1,pf=c.periodoFim||30;
+    const wPS=pi>pf?new Date(wY,wM-2,pi):new Date(wY,wM-1,pi);
+    const wPE=new Date(wY,wM-1,pf);
+
+    // Local date→string (avoids UTC timezone shift)
+    const d2s=d=>{const y=d.getFullYear(),m=d.getMonth()+1,dd=d.getDate();return y+'-'+String(m).padStart(2,'0')+'-'+String(dd).padStart(2,'0');};
+    // ── Função: ativo qualifica para este mês? ──
+    // Regra: tem historico com dataDesmob que sobrepõe o período de trabalho
+    // Sobreposição: dataMob<=wPE AND dataDesmob>=wPS
+    function qualifica(a){
+      if(a.status==='venda')return false;
+      // Ativos locados normalmente
+      if(a.status!=='disponível')return a.contractId===c.id;
+      // Disponível: verifica historico
+      if(a.contractId!==c.id&&!( (a.historico||[]).some(h=>h.contractId===c.id)))return false;
+      return (a.historico||[]).some(h=>{
+        if(!h.dataDesmob)return false;
+        const des=new Date(xlDate(String(h.dataDesmob)));
+        if(isNaN(des.getTime())||des<wPS)return false;
+        const mob=h.dataMob?new Date(xlDate(String(h.dataMob))):null;
+        return !mob||mob<=wPE;
+      });
+    }
+
+    // ── Ativos que DEVEM estar neste BM ──
+    const deveEstar=ativos.filter(qualifica);
+    if(!deveEstar.length)continue;
+
+    // ── BM existente para este mês ──
+    const existingBMs=bs.filter(b=>b.contractId===c.id&&b.competencia===comp&&b.status!==SCAN);
+
+    // ── Calcula med para um ativo ──
+    function calcMed(a){
+      // Busca entrada do historico com dataMob<dataDesmob válida
+      const h=(a.historico||[]).slice().reverse()
+        .find(hh=>hh.dataDesmob&&hh.dataMob&&String(hh.dataMob)<String(hh.dataDesmob));
+      const dm=h?.dataMob||a.dataMob||null;
+      const dd=h?.dataDesmob||a.dataDesmob||null;
+      const mens=(h?.mensalidade>0)?h.mensalidade:getMens(a);
+      if(!dm)return null;
+      // Datas efetivas: clampadas ao período de trabalho
+      const dIni=String(dm)>d2s(wPS)?String(dm):d2s(wPS);
+      const dFim=dd&&String(dd)<d2s(wPE)?String(dd):d2s(wPE);
+      if(String(dIni)>=String(dFim)&&dIni!==dFim)return null;
+      const prop=calcPropDatas(dIni,dFim,c.periodoInicio,c.periodoFim);
+      if(!(prop>=0))return null;
+      const fin=gEF(a);
+      const finMens=mens>0?mens:fin.mensalidade;
+      return{dataIni:dIni,dataFim:dFim,prop:Math.round(prop*1000)/1000,
+        _fin:{mensalidade:finMens,franquia:fin.franquia,horaContratual:fin.horaContratual,
+          contractId:c.id,nomeContrato:c.nomeContrato,nomeCliente:c.nomeCliente}};
+    }
+
+    if(!existingBMs.length){
+      const med={};
+      deveEstar.forEach(a=>{const m=calcMed(a);if(m)med[a.id]=m;});
+      const nb={id:uid(),contractId:c.id,competencia:comp,status:'Ag. Fechamento',
+        equipIds:deveEstar.map(a=>a.id),medicao:med,dataEntrada:new Date().toISOString()};
       bs.push(nb);await sB(nb);changed=true;
     } else {
-      const newIds=contractAtivos.map(a=>a.id).sort();
-      const oldIds=[...existing.equipIds].sort();
-      if(JSON.stringify(newIds)!==JSON.stringify(oldIds)){
-        existing.equipIds=contractAtivos.map(a=>a.id);
-        await sB(existing);changed=true;
+      const bm=existingBMs[0];
+      bm.medicao=bm.medicao||{};
+      let bmChanged=false;
+      const deveIds=new Set(deveEstar.map(a=>a.id));
+      // Early exit: all locado deveEstar already in BM AND no stale disponível to remove
+      const alreadyOk=deveEstar.every(a=>(bm.equipIds||[]).includes(a.id)&&a.status!=='disponível');
+      const hasStale=(bm.equipIds||[]).some(eid=>{const a=_ativoIdx.get(eid);return a&&a.status==='disponível'&&!deveIds.has(eid);});
+      if(alreadyOk&&!hasStale)continue;
+      // Remove ativos que não qualificam mais (ex: desmob antes do período)
+      const idsParaRemover=(bm.equipIds||[]).filter(eid=>{
+        const a=_ativoIdx.get(eid);
+        if(!a)return true; // ativo não existe mais
+        return !deveIds.has(eid)&&a.status==='disponível';
+      });
+      if(idsParaRemover.length){
+        bm.equipIds=(bm.equipIds||[]).filter(id=>!idsParaRemover.includes(id));
+        idsParaRemover.forEach(id=>delete bm.medicao[id]);
+        bmChanged=true;
       }
+      // Adiciona/atualiza ativos que devem estar
+      deveEstar.forEach(a=>{
+        const m=calcMed(a);
+        if(!m)return;
+        // Sempre recalcula para disponível (datas do historico)
+        if(a.status==='disponível'||(bm.medicao[a.id]?.prop==null)){
+          bm.medicao[a.id]=bm.medicao[a.id]||{};
+          bm.medicao[a.id].dataIni=m.dataIni;
+          bm.medicao[a.id].dataFim=m.dataFim;
+          bm.medicao[a.id].prop=m.prop;
+          if(!bm.medicao[a.id]._fin)bm.medicao[a.id]._fin=m._fin;
+          bmChanged=true;
+        }
+        if(!(bm.equipIds||[]).includes(a.id)){
+          bm.equipIds=[...(bm.equipIds||[]),a.id];
+          bmChanged=true;
+        }
+      });
+      if(bmChanged){await sB(bm);changed=true;}
     }
   }
-  if(changed){lsSave();}
+  return changed;
 }
+
+
 // ═══════════════ RENDER ATIVOS ═══════════════
 function rA(){
   const q=(document.getElementById('sa')?.value||'').toLowerCase();
@@ -1342,7 +1500,23 @@ function rA(){
   const eqS=applySort(eq);
   if(!eqS.length){tb.innerHTML='<tr><td colspan="24" style="text-align:center;padding:24px;color:var(--text3)">Nenhum ativo encontrado</td></tr>';return;}
   tb.innerHTML=eqS.map(a=>{
-    const c=cs.find(x=>x.id===a.contractId);const fin=gEF(a);
+    const c=cs.find(x=>x.id===a.contractId);
+    // Display uses RAW values — gEF (which recovers from historico) is for calculations only
+    const fin={
+      sla:a.sla||'',
+      mensalidade:a.mensalidade||0,
+      franquia:isFranqLivre(a)?0:(a.franquia||0),
+      horaContratual:a.horaContratual||0,
+      faixas:a.faixas||[{limite:null,preco:0}],
+      franquiaReduzida:a.franquiaReduzida||false,
+      mesesFR:a.mesesFR||[],
+      precoFR:a.precoFR||0,
+      perExc:a.perExc||'mensal',
+      tipoExc:a.tipoExc||'mês a mês',
+      ultCobrExc:a.ultCobrExc||'',
+      franquiaLivre:isFranqLivre(a),
+      porHora:(a.mensalidade||0)===0&&(a.horaContratual||0)>0
+    };
     const m1=isM1(c,a);const fxKey=a.id+'-fx';const fxOpen=fxO===fxKey;
     const fxL=fin.faixas?.length===1?'1 faixa':`${fin.faixas?.length||0} faixas`;
     const frM=fin.mesesFR?.map(i=>MS[i]).join(', ')||'-';
@@ -1372,6 +1546,7 @@ function rA(){
       <td>${a.horimetroMob!=null?a.horimetroMob.toLocaleString('pt-BR')+'h':'-'}</td>
       <td><div style="display:flex;gap:4px">
         <button class="bti" onclick="openEM('${a.id}')"><i class="ti ti-edit"></i></button>
+        <button class="bti" onclick="openHistoricoAtivo('${a.id}')" title="Histórico de movimentação"><i class="ti ti-history"></i></button>
         ${a.status==='locado'?`<button class="bti" onclick="openDM('${a.id}')"><i class="ti ti-logout" title="Desmobilizar"></i></button>`:''}
         <button class="bti" style="color:var(--red)" onclick="excluirAtivo('${a.id}')" title="Excluir ativo"><i class="ti ti-trash"></i></button>
       </div></td>
@@ -1435,7 +1610,7 @@ function rC(){
   if(!filtered.length){el.innerHTML='<div style="text-align:center;padding:28px;color:var(--text3)">Nenhum contrato</div>';return;}
   el.innerHTML=filtered.map(c=>{
     const m1=isM1(c,null);const open=window['cc2_'+c.id];
-    const cAtivos=ativos.filter(a=>a.contractId===c.id);
+    const cAtivos=(_ativosByC.get(c.id)||[]);
     const loc=cAtivos.filter(a=>a.status==='locado').length;
     const tM=cAtivos.filter(a=>a.status!=='disponível'&&a.status!=='venda'&&a.status!=='desmobilizado').reduce((s,a)=>s+(a.mensalidade||0),0);
     return`<div class="cb3" style="margin-bottom:10px">
@@ -1536,7 +1711,7 @@ Esta ação não pode ser desfeita.`;
 }
 async function removerEqBM(bmId,eid){
   const b=bs.find(x=>x.id===bmId);if(!b)return;
-  const a=ativos.find(x=>x.id===eid);
+  const a=_ativoIdx.get(eid);
   if(!confirm(`Desmembrar "${a?.ativo||eid}" deste BM?
 
 Será criado um BM separado para este equipamento em "Ag. Fechamento".`))return;
@@ -1571,6 +1746,7 @@ Esta ação não pode ser desfeita.`))return;
 async function desvincular(aid){
   const a=ativos.find(x=>x.id===aid);if(!a)return;
   if(!confirm(`Desvincular ${a.ativo} do contrato atual? O ativo ficará como Disponível.`))return;
+  snapAtivo(a,'desvínculo','Ativo desvinculado do contrato');
   a.contractId=null;a.status='disponível';a.dataDesmob=new Date().toISOString().split('T')[0];
   await sAt(a);rAll();
 }
@@ -1617,11 +1793,16 @@ async function confirmarVinculo(cid){
   if(!sels.length){alert('Selecione ao menos um ativo.');return;}
   for(const aid of sels){
     const a=ativos.find(x=>x.id===aid);if(!a)continue;
+    // Save previous state before re-mobilizing
+    if(a.dataMob)snapAtivo(a,'mobilização',`Mobilizado para ${cs.find(x=>x.id===cid)?.nomeContrato||cid} | anterior: mob ${a.dataMob} desmob ${a.dataDesmob||'—'}`);
+    const _lc=cs.find(x=>x.id===cid);
     a.contractId=cid;a.status='locado';a.dataMob=mob;a.dataDesmob=null;
+    // Inherit M+1 and period from contract
+    if(_lc){a.m1Fixo=!!_lc.m1Fixo;}
     await sAt(a);
   }
+  _bmsLoaded=false;
   closeVM();
-  await autoCreateBMs(mo.kanban.y,mo.kanban.m);
   rAll();
 }
 // ═══════════════ PREVISTO ═══════════════
@@ -1629,7 +1810,26 @@ async function confirmarVinculo(cid){
 function calcPrevAtivoMes(a,c,y,m){
   // Returns {prop, prevMens, skip}
   const fin=gEF(a);
-  if(a.status==='disponível'||a.status==='venda')return{skip:true};
+  if(a.status==='venda')return{skip:true};
+  // disponível: only skip if no dataDesmob at all
+  // calcPropMob handles M+1 shift — dataDesmob may be in the work month not the billing month
+  if(a.status==='disponível'){
+    // Try historico for closed period (dataMob < dataDesmob)
+    const _hE=(a.historico||[]).slice().reverse()
+      .find(h=>h.dataDesmob&&h.dataMob&&String(h.dataMob)<String(h.dataDesmob));
+    const des=a.dataDesmob||_hE?.dataDesmob||null;
+    if(!des){
+      // No dataDesmob — if mensalidade exists treat as full month (active all period)
+      const mens=getMens(a);if(!(mens>0))return{skip:true};
+      // Set dataMob from historico if available (for proper calcPropMob)
+      const _hM=(a.historico||[]).slice().reverse().find(h=>h.dataMob);
+      if(_hM?.dataMob&&!a.dataMob)a={...a,dataMob:_hM.dataMob};
+      // No dataDesmob = active full period, calcPropMob will use period end
+    } else {
+      if(!a.dataDesmob)a={...a,dataDesmob:des};
+      if(!a.dataMob&&_hE?.dataMob)a={...a,dataMob:_hE.dataMob};
+    }
+  }
   const prop=calcPropMob(a,c,y,m); // isM1 resolved internally
   if(prop===0)return{skip:true,prop:0};
   const sm=m;
@@ -1657,6 +1857,108 @@ function getBMNFDate(b){
 function getBMMens(b){
   const{tM}=gBMS(b);return tM;
 }
+
+// ── Historico deduplicado ──
+// Mesma operação = mesmo tipo + mesmo contractId + mesmas datas → conta UMA vez
+function getHistDedup(a){
+  const seen=new Set();
+  return(a.historico||[]).filter(h=>{
+    const key=[h.contractId,h.dataMob,h.dataDesmob].join('|'); // tipo excluded from dedup key
+    if(seen.has(key))return false;
+    seen.add(key);return true;
+  });
+}
+
+// ── Datas efetivas do ativo (atual ou última entrada no historico) ──
+function getAtivoDates(a){
+  if(a.dataMob){
+    // Validate: dataMob must be before dataDesmob
+    if(a.dataDesmob&&a.dataMob>=a.dataDesmob){
+      // Current dates invalid — fall through to historico
+    } else {
+      return{dataMob:a.dataMob,dataDesmob:a.dataDesmob||null};
+    }
+  }
+  // Find most recent historico entry with valid date range (dataMob < dataDesmob)
+  const deduped=getHistDedup(a).slice().reverse();
+  // Prefer entries with BOTH mob AND desmob where mob < desmob (closed valid periods)
+  const valid=deduped.find(h=>h.dataMob&&h.dataDesmob&&h.dataMob<h.dataDesmob);
+  if(valid)return{dataMob:valid.dataMob,dataDesmob:valid.dataDesmob};
+  // Fallback: any entry with dataMob
+  const any=deduped.find(h=>h.dataMob);
+  return{dataMob:any?.dataMob||null,dataDesmob:a.dataDesmob||any?.dataDesmob||null};
+}
+
+// ── Mensalidade efetiva (atual ou historico deduplicado) ──
+let _bmFinIdx=null;
+function buildBmFinIdx(){
+  _bmFinIdx={};
+  (bs||[]).forEach(b=>(b.equipIds||[]).forEach(eid=>{
+    if(_bmFinIdx[eid])return;
+    const fin=b.medicao?.[eid]?._fin;
+    if(fin&&(fin.mensalidade||0)>0)_bmFinIdx[eid]={mensalidade:fin.mensalidade,contractId:b.contractId};
+  }));
+}
+function getMens(a){
+  if((a.mensalidade||0)>0)return a.mensalidade;
+  const hs=getHistDedup(a).slice().reverse().find(h=>(h.mensalidade||0)>0);
+  if((hs?.mensalidade||0)>0)return hs.mensalidade;
+  if(!_bmFinIdx)buildBmFinIdx();
+  return _bmFinIdx[a.id]?.mensalidade||0;
+}
+function getHistContractId(a){
+  if(a.contractId)return a.contractId;
+  const hs=getHistDedup(a).slice().reverse().find(h=>h.contractId);
+  if(hs?.contractId)return hs.contractId;
+  if(!_bmFinIdx)buildBmFinIdx();
+  return _bmFinIdx[a.id]?.contractId||(bs||[]).find(b=>(b.equipIds||[]).includes(a.id))?.contractId||null;
+}
+
+
+// ── Períodos de billing de um ativo ──
+// Aceita: período atual (se contractId set) + historico (com ou sem dataDesmob)
+// dataDesmob do historico: usa h.dataDesmob se válido, senão usa a.dataDesmob
+function getAtivoPeriods(a){
+  const periods=[];
+  const seen=new Set();
+  function addP(mob,des,mens,cid){
+    if(!mob||!(mens>0)||!cid)return;
+    if(des&&String(mob)>=String(des))return; // skip inverted ranges
+    const key=cid+'|'+mob+'|'+(des||'');
+    if(seen.has(key))return;
+    seen.add(key);
+    periods.push({dataMob:mob,dataDesmob:des||null,mensalidade:mens,contractId:cid});
+  }
+  // Current period
+  if(a.dataMob&&(a.mensalidade||0)>0&&a.contractId)
+    addP(a.dataMob,a.dataDesmob||null,a.mensalidade,a.contractId);
+  // Historico periods — only need dataMob + mensalidade + contractId
+  // dataDesmob: use h.dataDesmob if valid, else use a.dataDesmob as fallback
+  const grouped={};
+  getHistDedup(a).forEach(h=>{
+    if(!h.dataMob||!h.contractId||!(h.mensalidade>0))return;
+    const cid=h.contractId;
+    if(!grouped[cid])grouped[cid]=[];
+    grouped[cid].push(h);
+  });
+  Object.entries(grouped).forEach(([cid,entries])=>{
+    // Find best dataMob (earliest) and best dataDesmob for this contract
+    const withDes=entries.filter(h=>h.dataDesmob&&String(h.dataMob)<String(h.dataDesmob));
+    if(withDes.length>0){
+      // Use most recent valid closed period
+      withDes.forEach(h=>addP(h.dataMob,h.dataDesmob,h.mensalidade,cid));
+    } else {
+      // Only open entries (no valid dataDesmob in historico)
+      // Use a.dataDesmob as fallback if it exists and is after dataMob
+      entries.forEach(h=>{
+        const des=(a.dataDesmob&&String(h.dataMob)<String(a.dataDesmob))?a.dataDesmob:null;
+        addP(h.dataMob,des,h.mensalidade,cid);
+      });
+    }
+  });
+  return periods;
+}
+
 function rP(){
   const{y,m}=mo.prev;const lbl=document.getElementById('pml');if(lbl)lbl.textContent=yml(y,m);
   const cur=ym(y,m);
@@ -1673,28 +1975,27 @@ function rP(){
   // Backlog faturado: backlog BMs that were faturado with NF date in current month
   const blFat=bs.filter(b=>(b.manual||(b.competencia>='2026-06'))&&b.competencia<cur&&b.status===SFAT&&getBMNFDate(b)===cur);
   const tBF=blFat.reduce((s,b)=>s+(b.valorFaturado||cBMV(b)),0);
-  // Build previsto groups by contract
+  // Build previsto grupos directly from bCR — same source as consolidado tab
+  const _bcrAllRows=bCRCached(cur); // single call, reused for grupos + tP
+  const _bcrCurRows=_bcrAllRows.filter(r=>!r.isBacklog);
   const grupos=[];
-  cs.forEach(c=>{
-    const items=[];
-    ativos.filter(a=>a.contractId===c.id).forEach(a=>{
-      const pv=calcPrevAtivoMes(a,c,y,m);
-      if(pv.skip)return;
-      const{prop,prevMens,isFR,fin}=pv;
-      let bv=fin.porHora?fin.horaContratual:(isFR?fin.precoFR:fin.mensalidade);
-      let val=prevMens;
-      if(fin.porHora){
-        bv=fin.horaContratual;
-        val=0; // porHora not in previsto — value unknown at month start
-      }
-      const ek=`${c.id}-${a.id}-${cur}`;const ed=me[ek];
-      items.push({...a,contractId:c.id,isFR,bv,prop,valor:ed!=null?ed:val,editedManual:ed!=null,ek,isM1:isM1(c,a),porHora:fin.porHora});
-    });
-    if(items.length)grupos.push({c,items});
+  _bcrCurRows.forEach(r=>{
+    const c=cs.find(x=>x.id===r.contractId);if(!c)return;
+    let g=grupos.find(x=>x.c.id===r.contractId);
+    if(!g){g={c,items:[]};grupos.push(g);}
+    const a=_ativoIdx.get(r.ativoId)||{id:r.ativoId,ativo:r.ativo,equipamento:r.equipamento,tipo:r.tipo};
+    const ek=`${r.contractId}-${r.ativoId}-${cur}`;
+    const men=r.prevMens/(r.prop>0?r.prop:1);
+    g.items.push({...a,contractId:r.contractId,
+      isFR:r.isFR||false,bv:men,prop:r.prop||1,valor:r.prevMens,
+      editedManual:false,ek,isM1:r.isM1,porHora:r.porHora||false,
+      dataIni:r.dataIni,dataFim:r.dataFim});
   });
   const qPf=(document.getElementById('spv')?.value||'').toLowerCase();
+  // Include ativos with null contractId — historico/BM recovery (desmob then disponível)
+
   const gruposFilt=qPf?grupos.filter(g=>g.c.nomeContrato.toLowerCase().includes(qPf)||g.c.nomeCliente.toLowerCase().includes(qPf)||(g.c.codCliente||'').toLowerCase().includes(qPf)):grupos;
-  const tP=gruposFilt.reduce((s,g)=>s+g.items.reduce((ss,i)=>ss+i.valor,0),0);
+  const tP=gruposFilt.reduce((s,g)=>s+g.items.reduce((ss,i)=>ss+(i.valor||0),0),0);
 
   const sc=document.getElementById('scp');
     // A faturar = mensalidade prevista - mensalidade já faturada no mês
@@ -1739,30 +2040,24 @@ function rP(){
 function exportarPrevisto(){
   const{y,m}=mo.prev;const cur=ym(y,m);
   const header=['Contrato','Nº Contrato','Cliente','SAP','Ativo','Equipamento','Tipo','M/M+1','Prop %','Base mensal','Valor previsto','Edit manual','Status ativo'];
-  const data=[];
-  cs.forEach(c=>{
-    ativos.filter(a=>a.contractId===c.id).forEach(a=>{
-      const pv=calcPrevAtivoMes(a,c,y,m);
-      if(pv.skip)return;
-      const ek=c.id+'-'+a.id+'-'+cur;
-      const ed=me[ek]!=null?me[ek]:null;
-      const valor=ed!=null?ed:pv.prevMens;
-      const fin=gEF(a);
-      const bv=pv.isFR?fin.precoFR:fin.mensalidade;
-      data.push([
-        c.nomeContrato,c.nroContrato,c.nomeCliente,c.codCliente,
-        a.ativo,a.equipamento||'',a.tipo||'',
-        isM1(c,a)?'M+1':'M',
-        Math.round(pv.prop*100)+'%',
-        bv||0,
-        Math.round(valor*100)/100,
-        ed!=null?'Sim':'Não',
-        a.status
-      ]);
-    });
+  // Use bCR — same source as display (previsto tab and consolidado tab)
+  const rows=bCRCached(cur).filter(r=>!r.isBacklog);
+  const data=rows.map(r=>{
+    const a=_ativoIdx.get(r.ativoId);
+    const c=cs.find(x=>x.id===r.contractId);
+    const men=r.prevMens/(r.prop>0?r.prop:1);
+    return[
+      r.contrato,c?.nroContrato||'',r.cliente,r.codCliente,
+      r.ativo,r.equipamento||'',r.tipo||'',
+      r.isM1?'M+1':'M',
+      Math.round((r.prop||1)*100)+'%',
+      Math.round(men*100)/100,
+      Math.round((r.prevMens||0)*100)/100,
+      'Não',
+      a?.status||''
+    ];
   });
   if(!data.length){alert('Nenhum dado para exportar.');return;}
-  // Add total row
   const total=data.reduce((s,r)=>s+(r[10]||0),0);
   data.push(['TOTAL','','','','','','','','','',Math.round(total*100)/100,'','']);
   const ws=XLSX.utils.aoa_to_sheet([header,...data]);
@@ -1772,13 +2067,58 @@ function exportarPrevisto(){
   XLSX.writeFile(wb,`previsto_${y}_${String(m).padStart(2,'0')}.xlsx`);
 }
 
+
+function rHistMov(){
+  const el=document.getElementById('hist-mov-table');if(!el)return;
+  const rows=[];
+  ativos.forEach(a=>{
+    (a.historico||[]).forEach(h=>{
+      rows.push({
+        ts:h.ts||'',data:h.ts?h.ts.slice(0,10):'',
+        tipo:h.tipo||'',ativo:a.ativo||'',equipamento:a.equipamento||'',
+        usuario:h.usuario||'',
+        contrato:h.nomeContrato||'',cliente:h.nomeCliente||'',
+        mensalidade:h.mensalidade||0,franquia:h.franquia||0,
+        sla:h.sla||'',dataMob:h.dataMob?fd(h.dataMob):'',
+        dataDesmob:h.dataDesmob?fd(h.dataDesmob):'',
+        hmIni:h.horimetroMob||'',hmFim:h.horimetroFinal||'',
+        obs:h.obs||''
+      });
+    });
+  });
+  rows.sort((a,b)=>b.ts.localeCompare(a.ts));
+  if(!rows.length){el.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px">Nenhuma movimentação registrada</div>';return;}
+  const icons={desmobilização:'ti-logout',desvínculo:'ti-unlink',mobilização:'ti-login',alteração:'ti-pencil'};
+  el.innerHTML='<div class="tw"><table><thead><tr><th>Data</th><th>Tipo</th><th>Ativo</th><th>Equipamento</th><th>Contrato</th><th>Cliente</th><th style="text-align:right">Mensalidade</th><th>Mob</th><th>Desmob</th><th>Hm ini</th><th>Hm fim</th><th>Usuário</th><th>Obs</th></tr></thead><tbody>'
+    +rows.map(r=>`<tr><td style="white-space:nowrap">${r.data}</td><td><i class="ti ${icons[r.tipo]||'ti-history'}" style="margin-right:4px"></i>${r.tipo}</td><td style="font-weight:600">${r.ativo}</td><td style="font-size:11px">${r.equipamento}</td><td style="font-size:11px">${r.contrato}</td><td style="font-size:11px">${r.cliente}</td><td style="text-align:right">${r.mensalidade?f(r.mensalidade):'—'}</td><td>${r.dataMob}</td><td>${r.dataDesmob}</td><td>${r.hmIni}</td><td>${r.hmFim}</td><td style="font-size:11px">${r.usuario}</td><td style="font-size:11px;color:var(--text3)">${r.obs}</td></tr>`).join('')
+    +'</tbody></table></div>';
+}
+
+function exportHistMov(){
+  const rows=[];
+  ativos.forEach(a=>{
+    (a.historico||[]).forEach(h=>{
+      rows.push([h.ts?h.ts.slice(0,10):'',h.tipo||'',a.ativo||'',a.equipamento||'',
+        h.nomeContrato||'',h.nomeCliente||'',h.mensalidade||0,h.franquia||0,
+        h.dataMob?fd(h.dataMob):'',h.dataDesmob?fd(h.dataDesmob):'',
+        h.horimetroMob||'',h.horimetroFinal||'',h.sla||'',h.usuario||'',h.obs||'']);
+    });
+  });
+  rows.sort((a,b)=>String(b[0]).localeCompare(String(a[0])));
+  const header=['Data','Tipo','Ativo','Equipamento','Contrato','Cliente','Mensalidade','Franquia','Data Mob','Data Desmob','Hm Ini','Hm Fim','SLA','Usuário','Obs'];
+  const ws=XLSX.utils.aoa_to_sheet([header,...rows]);
+  ws['!cols']=[{wch:12},{wch:14},{wch:10},{wch:28},{wch:25},{wch:25},{wch:12},{wch:10},{wch:12},{wch:12},{wch:8},{wch:8},{wch:8},{wch:16},{wch:30}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Histórico');
+  XLSX.writeFile(wb,'historico_movimentacoes.xlsx');
+}
+
 function diagPrevisto(){
   const{y,m}=mo.prev;const cur=ym(y,m);
 
   // rP: all ativos included
   const rpList=[];
   cs.forEach(c=>{
-    ativos.filter(a=>a.contractId===c.id).forEach(a=>{
+    (_ativosByC.get(c.id)||[]).forEach(a=>{
       const pv=calcPrevAtivoMes(a,c,y,m);
       if(pv.skip)return;
       const ek=c.id+'-'+a.id+'-'+cur;
@@ -1789,7 +2129,7 @@ function diagPrevisto(){
   });
 
   // bCR: all rows
-  const bcrRows=bCR(cur);
+  const bcrRows=bCRCached(cur);
   const bcrList=bcrRows.map(r=>{
     const c=cs.find(x=>x.nomeContrato===r.contrato&&x.nomeCliente===r.cliente);
     const a=ativos.find(x=>x.ativo===r.ativo&&x.contractId===c?.id);
@@ -1838,9 +2178,15 @@ function diagPrevisto(){
   console.log('bCR list:',bcrList);
 }
 
-async function epv(key,val){me[key]=parseFloat(val)||0;await sE();rP();}
+async function epv(key,val){me[key]=parseFloat(val)||0;sE();_bcrCache={};rP();}
 
 // ═══════════════ CONSOLIDADO ═══════════════
+let _bcrCache={};
+function bCRCached(sYM){
+  if(_bcrCache[sYM])return _bcrCache[sYM];
+  _bcrCache[sYM]=bCR(sYM);
+  return _bcrCache[sYM];
+}
 function bCR(sYM){
   const rows=[];const[sy,sm]=sYM.split('-').map(Number);
 
@@ -1851,26 +2197,32 @@ function bCR(sYM){
   const relevantBMs=bs.filter(b=>{
     if(b.status===SCAN)return false;
     if(b.competencia===sYM)return true; // current month
-    if(b.competencia<sYM){
-      if(b.status===SFAT){
-        // faturado backlog: only if NF date in sYM
-        return getBMNFDate(b)===sYM;
-      }
-      // pending backlog: show in current month if (manual or >= 2026-06)
-      if(b.manual||(b.competencia>='2026-06'))return true;
+    if(b.competencia<sYM&&b.status!==SFAT){
+      if(b.manual)return true;                   // manual: sempre backlog
+      if(b.competencia>='2026-06')return true;   // auto: backlog a partir de jun/2026
     }
     return false;
   });
 
   relevantBMs.forEach(bm=>{
     const c=cs.find(x=>x.id===bm.contractId);if(!c)return;
-    const isBacklog=bm.competencia<sYM;
+    // Backlog = only MANUAL BMs from previous months
+    // Auto-created carry-forward BMs are NOT backlog (just pending billing)
+    const isBacklog=bm.manual&&bm.competencia<sYM;
     const bmTag=isBacklog?`Backlog ${ML[parseInt(bm.competencia.split('-')[1])-1]} ${bm.competencia.split('-')[0]}`:'';
 
     (bm.equipIds||[]).forEach(eid=>{
-      const a=ativos.find(x=>x.id===eid);if(!a)return;
-      if(a.status==='disponível'||a.status==='venda')return;
-      const pv=calcPrevAtivoMes(a,c,sy,sm);
+      const a=_ativoIdx.get(eid);if(!a)return;
+      if(a.status==='venda')return; // disponível allowed — may have historico billing
+      // Use historico data if ativo contractId was cleared
+      // Use getAtivoPeriods for cleared ativos (same logic as Fleet)
+      const _ap=(!a.contractId)?getAtivoPeriods(a).find(p=>p.contractId===c.id):null;
+      const aForCalc=_ap?{...a,contractId:c.id,mensalidade:_ap.mensalidade,
+        dataMob:_ap.dataMob,dataDesmob:_ap.dataDesmob}:
+        (()=>{const{dataMob:aDm,dataDesmob:aDd}=getAtivoDates(a);
+          return{...a,contractId:a.contractId||c.id,mensalidade:getMens(a)||a.mensalidade,
+          dataMob:aDm,dataDesmob:aDd};})();
+      const pv=calcPrevAtivoMes(aForCalc,c,sy,sm);
       // For backlog rows: use the backlog month's previsto
       let prevMens=0;
       if(isBacklog){
@@ -1883,8 +2235,14 @@ function bCR(sYM){
         const ed=(!pv.skip&&me[ek]!=null)?me[ek]:null;
         prevMens=ed!=null?ed:(pv.prevMens||0);
       }
-      const fin=gEF(a);const isFR=fin.franquiaReduzida&&fin.mesesFR.includes(sm-1);
       const med=bm.medicao?.[eid]||{};
+      const _f=med._fin;let fin=gEF(a);
+      if(_f&&(fin.mensalidade||0)===0&&(fin.horaContratual||0)===0){
+        fin={...fin,mensalidade:_f.mensalidade||0,franquia:_f.franquia||fin.franquia,
+          horaContratual:_f.horaContratual||0,faixas:_f.faixas||fin.faixas,
+          precoFR:_f.precoFR||fin.precoFR,porHora:(_f.mensalidade||0)===0&&(_f.horaContratual||0)>0};
+      }
+      const isFR=fin.franquiaReduzida&&fin.mesesFR.includes(sm-1);
       // porHora: track separately
       let valorHora=0;
       if(fin.porHora){
@@ -1899,28 +2257,41 @@ function bCR(sYM){
       if(bm.status===SFAT){const{tE}=gBMS(bm);const nEq=(bm.equipIds||[]).length||1;excVal=tE>0?(tE/nEq):excVal;}
       const adicVal=(med.valorAdicional||0);
       const totBM=mensFechada!=null?(mensFechada+(excVal||0)+adicVal-(med.descCom||0)-(med.descOp||0)):null;
-      const pf2=preFillDates(a,c,bm.competencia);
-      const dataIniDisp=med.dataIni||pf2.dataIni;
-      const dataFimDisp=med.dataFim||pf2.dataFim;
-      rows.push({contrato:c.nomeContrato,nroContrato:c.nroContrato,cliente:c.nomeCliente,codCliente:c.codCliente,
+      const pf2=preFillDates(aForCalc,c,bm.competencia); // use aForCalc (snap dates) for correct M+1 work period
+      const dataIniDisp=pf2.dataIni||med.dataIni; // pf2 first: always reflects correct M+1 month
+      const dataFimDisp=pf2.dataFim||med.dataFim;
+      rows.push({contractId:c.id,ativoId:a.id,contrato:c.nomeContrato,nroContrato:c.nroContrato,cliente:c.nomeCliente,codCliente:c.codCliente,
         ativo:a.ativo,equipamento:a.equipamento,tipo:a.tipo,
         status:bm.status||'Sem BM',bmTag,isBacklog,
         prevMens,valorHora,mensFechada,hE:horas,vE:excVal,adicVal,
-        dC:med.descCom||null,dO:med.descOp||null,tot:totBM,
+        dC:med.descCom||null,dO:med.descOp||null,contestacao:med.contestacao||null,tot:totBM,obsDescCom:med.obsDescCom||'',obsDescOp:med.obsDescOp||'',justContest:med.justContest||'',
         nMN:bm.nfMensNum||'',nMD:bm.nfMensData||'',nEN:bm.nfExcNum||'',nED:bm.nfExcData||'',
         isFat:bm.status===SFAT,
         dataIni:dataIniDisp,dataFim:dataFimDisp,isM1:isM1(c,a),prop,
         periodoInicio:c.periodoInicio,periodoFim:c.periodoFim});
     });
   });
-  return rows;
+  // Deduplicate: when a BM is split (desmembrado), same ativo may appear in 2 BMs
+  // Keep the row with the most advanced status (highest STAGES index)
+  const _seen=new Map();
+  rows.forEach(r=>{
+    const key=r.contractId+'|'+r.ativoId;
+    const existing=_seen.get(key);
+    if(!existing){_seen.set(key,r);return;}
+    // Keep most advanced status; prefer non-backlog over backlog
+    const ri=STAGES.indexOf(r.status);
+    const ei=STAGES.indexOf(existing.status);
+    if(!r.isBacklog&&existing.isBacklog){_seen.set(key,r);}
+    else if(r.isBacklog===existing.isBacklog&&ri>ei){_seen.set(key,r);}
+  });
+  return Array.from(_seen.values());
 }
 
 function rCRws(tb,rows){
   if(!tb)return;
   if(!rows.length){tb.innerHTML='<tr><td colspan="20" style="text-align:center;padding:24px;color:var(--text3)">Nenhum dado</td></tr>';return;}
-  let t={p:0,m:0,e:0,dC:0,dO:0,fat:0,ef:0,ad:0,efa:0,vh:0};
-  rows.forEach(r=>{t.p+=r.prevMens||0;t.m+=r.mensFechada||0;t.e+=r.vE||0;t.dC+=r.dC||0;t.dO+=r.dO||0;t.ad+=(r.adicVal||0);t.vh+=(r.valorHora||0);if(r.isFat){t.fat+=r.tot||0;t.ef+=r.vE||0;t.efa+=(r.adicVal||0);}});
+  let t={p:0,m:0,e:0,hE:0,dC:0,dO:0,fat:0,ef:0,ad:0,cont:0,efa:0,vh:0};
+  rows.forEach(r=>{t.p+=(r.prevMens||0);t.m+=r.mensFechada||0;t.hE+=(r.hE||0);t.e+=r.vE||0;t.dC+=r.dC||0;t.dO+=r.dO||0;t.ad+=(r.adicVal||0);t.cont+=(r.contestacao||0);t.vh+=(r.valorHora||0);if(r.isFat){t.fat+=r.tot||0;t.ef+=r.vE||0;t.efa+=(r.adicVal||0);}});
   const aT=t.p>0&&t.fat>0?Math.round(t.fat/t.p*100):null;
   const aC=aT==null?'inherit':aT>=95?'#2A8C6E':aT>=80?'#F37021':'var(--red)';
   tb.innerHTML=rows.map(r=>{
@@ -1928,16 +2299,17 @@ function rCRws(tb,rows){
     const ac=a==null?'var(--text3)':a>=95?'#2A8C6E':a>=80?'#F37021':'var(--red)';
     const sC=r.status===SFAT?'bg':r.status===SCAN?'bgr':r.status==='Sem BM'?'bgr':'ba';
     const backlogBadge=r.isBacklog?`<span class="badge" style="background:rgba(224,82,82,0.1);color:var(--red);border:1px solid rgba(224,82,82,0.3);margin-left:4px;font-size:9px">${r.bmTag}</span>`:'';
-    return`<tr><td style="font-weight:600;color:var(--text)">${r.contrato}</td><td>${r.nroContrato}</td><td>${r.cliente}</td><td>${r.codCliente}</td><td style="font-weight:600;color:var(--text)">${r.ativo}</td><td>${r.equipamento}</td><td><span class="badge bgr">${r.tipo}</span></td><td><span class="badge ${r.isM1?'ba':'bb'}">${r.isM1?'M+1':'M'}</span></td><td style="color:var(--text2)">${r.dataIni?fd(r.dataIni):'−'}</td><td style="color:var(--text2)">${r.dataFim?fd(r.dataFim):'−'}</td><td style="font-weight:600;color:${r.prop<1?'#F37021':'var(--text2)'}">${r.prop!=null?Math.round(r.prop*100)+'%':'−'}</td><td>${f(r.prevMens)}</td><td>${r.mensFechada!=null?f(r.mensFechada):'−'}</td><td>${r.hE!=null?r.hE+'h':'−'}</td><td>${r.vE>0?f(r.vE):'−'}</td><td class="sc2">${r.dC>0?'<span style="color:#F37021">'+f(r.dC)+'</span>':'−'}</td><td>${r.dO>0?'<span style="color:#F37021">'+f(r.dO)+'</span>':'−'}</td><td class="sc2" style="font-weight:600;color:var(--text)">${r.tot!=null?f(r.tot):'−'}</td><td><span style="font-weight:700;color:${ac}">${a!=null?a+'%':'−'}</span></td><td class="sc2">${r.nMN||'−'}</td><td>${r.nMD?fd(r.nMD):'−'}</td><td class="sc2">${r.nEN||'−'}</td><td>${r.nED?fd(r.nED):'−'}</td><td class="sc2"><span class="badge ${sC}">${r.status}</span>${backlogBadge}</td></tr>`;
-  }).join('')+`<tr class="gt"><td colspan="11">Total — ${rows.length} itens</td><td>${f(t.p)}</td><td>${f(t.m)}</td><td>−</td><td>${f(t.e)}</td><td>${f(t.dC)}</td><td>${f(t.dO)}</td><td>${f(t.fat)}</td><td style="color:${aC}">${aT!=null?aT+'%':'−'}</td><td colspan="5"></td></tr>`;
+    return`<tr><td style="font-weight:600;color:var(--text)">${r.contrato}</td><td>${r.nroContrato}</td><td>${r.cliente}</td><td>${r.codCliente}</td><td style="font-weight:600;color:var(--text)">${r.ativo}</td><td>${r.equipamento}</td><td><span class="badge bgr">${r.tipo}</span></td><td><span class="badge ${r.isM1?'ba':'bb'}">${r.isM1?'M+1':'M'}</span></td><td>${r.isBacklog?`<span class="badge" style="background:rgba(224,82,82,0.1);color:var(--red);border:1px solid rgba(224,82,82,0.3)">Sim</span>`:'<span style="color:var(--text3)">−</span>'}</td><td style="color:var(--text2)">${r.dataIni?fd(r.dataIni):'−'}</td><td style="color:var(--text2)">${r.dataFim?fd(r.dataFim):'−'}</td><td style="font-weight:600;color:${r.prop<1?'#F37021':'var(--text2)'}">${r.prop!=null?Math.round(r.prop*100)+'%':'−'}</td><td>${f(r.prevMens)}</td><td>${r.mensFechada!=null?f(r.mensFechada):'−'}</td><td>${r.hE!=null?r.hE+'h':'−'}</td><td>${r.vE>0?f(r.vE):'−'}</td><td class="sc2">${r.dC>0?'<span style="color:#F37021">'+f(r.dC)+'</span>':'−'}</td><td style="font-size:10px;color:var(--text3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.obsDescCom||'−'}</td><td>${r.dO>0?'<span style="color:#F37021">'+f(r.dO)+'</span>':'−'}</td><td style="font-size:10px;color:var(--text3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.obsDescOp||'−'}</td><td>${r.contestacao>0?'<span style="color:var(--red)">'+f(r.contestacao)+'</span>':'−'}</td><td style="font-size:10px;color:var(--text3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.justContest||'−'}</td><td>${r.adicVal>0?f(r.adicVal):'−'}</td><td class="sc2" style="font-weight:600;color:var(--text)">${r.tot!=null?f(r.tot):'−'}</td><td><span style="font-weight:700;color:${ac}">${a!=null?a+'%':'−'}</span></td><td class="sc2">${r.nMN||'−'}</td><td>${r.nMD?fd(r.nMD):'−'}</td><td class="sc2">${r.nEN||'−'}</td><td>${r.nED?fd(r.nED):'−'}</td><td class="sc2"><span class="badge ${sC}">${r.status}</span>${backlogBadge}</td></tr>`;
+  }).join('')+`<tr class="gt"><td colspan="12">Total — ${rows.length} itens</td><td>${f(t.p)}</td><td>${f(t.m)}</td><td>${t.hE>0?t.hE+'h':'−'}</td><td>${t.e>0?f(t.e):'−'}</td><td>${f(t.dC)}</td><td>−</td><td>${f(t.dO)}</td><td>−</td><td>${t.cont>0?f(t.cont):'−'}</td><td>−</td><td>${t.ad>0?f(t.ad):'−'}</td><td>${f(t.fat)}</td><td style="color:${aC}">${aT!=null?aT+'%':'−'}</td><td colspan="5"></td></tr>`;
 }
 function rCons(){
   const sel=document.getElementById('cms');if(!sel)return;
   const qC=(document.getElementById('scons')?.value||'').toLowerCase();
   const{y,m}=mo.prev;const opts=[];for(let i=2;i>=0;i--){const r=aM(y,m,-i);opts.push(r);}
   sel.innerHTML=opts.map(({y:oy,m:om})=>`<option value="${ym(oy,om)}">${yml(oy,om)}</option>`).join('');
-  const sYM=sel.value||ym(y,m);let rows=bCR(sYM);if(qC)rows=rows.filter(r=>[r.contrato,r.cliente,r.codCliente].some(v=>v?.toLowerCase().includes(qC)));
-  let t={p:0,m:0,dC:0,dO:0,fat:0,vh:0,ef:0,efa:0};rows.forEach(r=>{t.p+=r.prevMens||0;t.m+=r.mensFechada||0;t.dC+=r.dC||0;t.dO+=r.dO||0;t.vh+=(r.valorHora||0);if(r.isFat){t.fat+=r.tot||0;t.ef+=(r.vE||0);t.efa+=(r.adicVal||0);}});
+  sel.value=ym(y,m); // default = current month (same as previsto tab)
+  const sYM=sel.value||ym(y,m);let rows=bCRCached(sYM);if(qC)rows=rows.filter(r=>[r.contrato,r.cliente,r.codCliente].some(v=>v?.toLowerCase().includes(qC)));
+  let t={p:0,m:0,dC:0,dO:0,fat:0,vh:0,ef:0,efa:0};rows.forEach(r=>{t.p+=r.isBacklog?0:(r.prevMens||0);t.m+=r.mensFechada||0;t.dC+=r.dC||0;t.dO+=r.dO||0;t.vh+=(r.valorHora||0);if(r.isFat){t.fat+=r.tot||0;t.ef+=(r.vE||0);t.efa+=(r.adicVal||0);}});
   const a=t.p>0&&t.fat>0?Math.round(t.fat/t.p*100):null;
   const sc=document.getElementById('scc');
   if(sc)sc.innerHTML=`<div class="sc"><div class="scl">Prev. mensalidade</div><div class="scv">${f(t.p)}</div></div><div class="sc"><div class="scl">Fechada</div><div class="scv">${f(t.m)}</div></div><div class="sc sc-wa" style="padding:0;overflow:hidden"><div style="display:flex;height:100%"><div style="flex:1;padding:14px 12px;border-right:1px solid var(--border)"><div class="scl">Desc. Comercial</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dC)}</div></div><div style="flex:1;padding:14px 12px"><div class="scl">Desc. Operacional</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dO)}</div></div></div></div><div class="sc ${a==null?'':a>=95?'sc-ok':a>=80?'sc-wa':'sc-er'}"><div class="scl">Faturado</div><div class="scv" style="color:#004042">${f(t.fat)}</div><div class="scs">${a!=null?'Performance '+a+'%':'−'}</div></div>`;
@@ -1966,6 +2338,9 @@ function atualizaExpAte(){
   if(!de||!ate)return;
   if(ate.value<de)ate.value=de;
 }
+let _rcpTimer=null;
+function debouncedRCP(){clearTimeout(_rcpTimer);_rcpTimer=setTimeout(rCP,280);}
+
 function rCP(){
   const{y,m}=mo.cons;const lbl=document.getElementById('cml');if(lbl)lbl.textContent=yml(y,m);
   popExpSelectors();
@@ -1976,31 +2351,35 @@ function rCP(){
   if(fsel){const cur=fsel.value;fsel.innerHTML='<option value="">Todos</option>'+allSt.map(s=>`<option value="${s}" ${cur===s?'selected':''}>${s}</option>`).join('');}
   if(q)rows=rows.filter(r=>[r.contrato,r.cliente,r.codCliente,r.ativo,r.equipamento].some(v=>v?.toLowerCase().includes(q)));
   if(fS)rows=rows.filter(r=>r.status===fS);
+  const fBL=document.getElementById('fbl')?.checked||false;
+  if(fBL)rows=rows.filter(r=>r.isBacklog);
   const cnt=document.getElementById('cco');if(cnt)cnt.textContent=`${rows.length} linha${rows.length!==1?'s':''}`;
   // Faturado = BMs faturados com data de NF neste mês (independe da competência)
   const {y:cy,m:cm}=mo.cons;const curCons=ym(cy,cm);
   const fatBMsCons=bs.filter(b=>b.status===SFAT&&getBMNFDate(b)===curCons);
   const tFCons=fatBMsCons.reduce((s,b)=>s+(b.valorFaturado||cBMV(b)),0);
-  // Prev. mensalidade: computed directly like rP (same logic, same result)
-  let tPCons=0;
-  cs.forEach(cc=>{ativos.filter(a=>a.contractId===cc.id).forEach(a=>{
-    const pv=calcPrevAtivoMes(a,cc,cy,cm);if(pv.skip)return;
-    const ek=cc.id+'-'+a.id+'-'+curCons;
-    const ed=me[ek]!=null?me[ek]:null;
-    tPCons+=ed!=null?ed:pv.prevMens;
-  });});
+  // Prev. mensalidade: use bCR (same source as previsto tab — includes desmob ativos)
+  const tPCons=bCRCached(curCons).filter(r=>!r.isBacklog).reduce((s,r)=>s+(r.prevMens||0),0);
   // Backlog total (pending + faturado from any month)
   const blAllCons=bs.filter(b=>(b.manual||(b.competencia>='2026-06'))&&b.competencia<curCons&&b.status!==SCAN&&(b.status!==SFAT||getBMNFDate(b)===curCons));
   const tBLCons=blAllCons.reduce((s,b)=>s+cBLV(b),0);
   // Descontos + hExc from current month rows only
+  // Backlog faturado = BMs manuais de meses anteriores já faturados com NF neste mês
+  const blFatCons=bs.filter(b=>b.manual&&b.competencia<curCons&&b.status===SFAT&&getBMNFDate(b)===curCons);
+  const tBLFat=blFatCons.reduce((s,b)=>s+(b.valorFaturado||cBMV(b)),0);
+  // Mensalidade a faturar = previsto - já faturado no mês
+  const tAFaturar=Math.max(0,tPCons-tFCons);
+  // Contratos ativos = contratos com pelo menos 1 ativo locado no mês
+  const contratosAtivos=new Set(bCRCached(curCons).filter(r=>!r.isBacklog).map(r=>r.contractId)).size;
   const rowsCur=rows.filter(r=>!r.isBacklog);
-  let t={p:tPCons,dC:0,dO:0,fat:tFCons,hExc:0,bl:tBLCons};
+  let t={p:tPCons,dC:0,dO:0,fat:tFCons,hExc:0,bl:tBLCons,blFat:tBLFat,aFaturar:tAFaturar,ctAtivos:contratosAtivos};
   rowsCur.forEach(r=>{t.dC+=(r.dC||0);t.dO+=(r.dO||0);t.hExc+=(r.vE||0)+(r.valorHora||0);});
   const a=t.p>0&&t.fat>0?Math.round(t.fat/t.p*100):null;const ac=a==null?'inherit':a>=95?'#2A8C6E':a>=80?'#F37021':'var(--red)';
   document.getElementById('scop').innerHTML=`
-    <div class="sc"><div class="scl">Prev. mensalidade</div><div class="scv">${f(t.p)}</div><div class="scs">mensalidades proporcionais</div></div>
-    <div class="sc sc-er"><div class="scl">Backlog total</div><div class="scv" style="color:var(--red)">${f(t.bl)}</div><div class="scs">${blAllCons.length} BM${blAllCons.length!==1?'s':''}</div></div>
-    ${t.hExc>0?`<div class="sc"><div class="scl">Horas excedentes + por hora</div><div class="scv" style="color:#F37021">${f(t.hExc)}</div></div>`:''}
+    <div class="sc"><div class="scl">Prev. mensalidade</div><div class="scv">${f(t.p)}</div><div class="scs">${t.ctAtivos} contrato${t.ctAtivos!==1?'s':''} ativo${t.ctAtivos!==1?'s':''}</div></div>
+    <div class="sc sc-er"><div class="scl">Backlog pendente</div><div class="scv" style="color:var(--red)">${f(t.bl)}</div><div class="scs" style="display:flex;gap:6px;align-items:center">${blAllCons.length} BM${blAllCons.length!==1?'s':''}${t.blFat>0?`<span style="opacity:.7">· já fat. ${f(t.blFat)}</span>`:''}</div></div>
+    <div class="sc"><div class="scl">Mensalidade a faturar</div><div class="scv" style="color:var(--orange)">${f(t.aFaturar)}</div><div class="scs">previsto − faturado</div></div>
+    ${t.hExc>0?`<div class="sc"><div class="scl">Horas excedentes</div><div class="scv" style="color:#F37021">${f(t.hExc)}</div></div>`:''}
     <div class="sc sc-wa" style="padding:0;overflow:hidden"><div style="display:flex;height:100%"><div style="flex:1;padding:14px 12px;border-right:1px solid var(--border)"><div class="scl">Desc. Comercial</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dC)}</div></div><div style="flex:1;padding:14px 12px"><div class="scl">Desc. Operacional</div><div class="scv" style="color:#F37021;font-size:18px">${f(t.dO)}</div></div></div></div>
     <div class="sc sc-ok"><div class="scl">Faturado</div><div class="scv" style="color:#004042">${f(t.fat)}</div><div class="scs">por data NF</div></div>
     <div class="sc ${a==null?'':a>=95?'sc-ok':a>=80?'sc-wa':'sc-er'}"><div class="scl">Performance</div><div class="scv" style="color:${ac}">${a!=null?a+'%':'−'}</div></div>
@@ -2038,7 +2417,7 @@ function rKC(b,cur){
   const isMon=b.status===SMON;
   const nEq=(b.equipIds||[]).length;
   // Excedente periodicidade alerts
-  const equipsB=(b.equipIds||[]).map(eid=>ativos.find(x=>x.id===eid)).filter(Boolean);
+  const equipsB=(b.equipIds||[]).map(eid=>_ativoIdx.get(eid)).filter(Boolean);
   const perLabels={trimestral:'Exc. Trim.',semestral:'Exc. Sem.',anual:'Exc. Anual'};
   // Track alert per periodicity type, not a single global flag
   const perMap={};
@@ -2142,6 +2521,11 @@ function hSC(bmId,ns,skipPin){
       b.status=ns;sB(b);rK();
     });return;
   }
+  // Clear NF when moving back from Faturado
+  if(os===SFAT&&ns!==SFAT){
+    b.nfMensNum='';b.nfMensData='';b.nfExcNum='';b.nfExcData='';
+    if(b.nfsEquip)Object.keys(b.nfsEquip).forEach(k=>{b.nfsEquip[k]={};});
+  }
   addHist(b,'movimentação',os,ns);
   b.status=ns;sB(b);rK();
 }
@@ -2174,13 +2558,14 @@ function pK(k){
 
 // ═══════════════ FATURADO MODAL (NF entry) ═══════════════
 function openFaturadoModal(bmId,cb){
+  _blockUntil=Date.now()+180000; // 3 min — keep Firebase from overwriting while user fills NF
   const b=bs.find(x=>x.id===bmId);const c=cs.find(x=>x.id===b.contractId);
   const{tM,tE,tAd,dC,dO,tot}=gBMS(b);
   window._fmc=cb;
   // Build per-equip NF rows using string concat (avoid nested backticks)
   let eqRows='';
   (b.equipIds||[]).forEach(eid=>{
-    const a=ativos.find(x=>x.id===eid);
+    const a=_ativoIdx.get(eid);
     const med=b.medicao?.[eid]||{};
     const nf=b.nfsEquip?.[eid]||{};
     const fin=gEF(a);
@@ -2189,13 +2574,13 @@ function openFaturadoModal(bmId,cb){
     let row='<div style="border:1px solid var(--border);border-radius:var(--r);padding:10px;margin-bottom:8px">';
     row+='<div style="font-weight:700;font-size:12px;margin-bottom:8px;color:var(--text)">'+(a?.ativo||eid)+' — '+(a?.equipamento||'')+'</div>';
     row+='<div class="g2">';
-    row+='<div class="ff"><label class="fl">Nº NF Mensalidade</label><input type="text" class="fm-eq-nn" data-eid="'+eid+'" value="'+(nf.nfMensNum||b.nfMensNum||'')+'"></div>';
-    row+='<div class="ff"><label class="fl">Data NF Mensalidade</label><input type="date" class="fm-eq-nd" data-eid="'+eid+'" value="'+(nf.nfMensData||b.nfMensData||'')+'"></div>';
+    row+='<div class="ff"><label class="fl">Nº NF Mensalidade</label><input type="text" class="fm-eq-nn" data-eid="'+eid+'" value="'+(nf.nfMensNum||'')+'"></div>';
+    row+='<div class="ff"><label class="fl">Data NF Mensalidade</label><input type="date" class="fm-eq-nd" data-eid="'+eid+'" value="'+(nf.nfMensData||'')+'"></div>';
     row+='</div>';
     if(eqExc){
       row+='<div class="g2" style="margin-top:6px">';
-      row+='<div class="ff"><label class="fl">Nº NF Excedente</label><input type="text" class="fm-eq-en" data-eid="'+eid+'" value="'+(nf.nfExcNum||b.nfExcNum||'')+'"></div>';
-      row+='<div class="ff"><label class="fl">Data NF Excedente</label><input type="date" class="fm-eq-ed" data-eid="'+eid+'" value="'+(nf.nfExcData||b.nfExcData||'')+'"></div>';
+      row+='<div class="ff"><label class="fl">Nº NF Excedente</label><input type="text" class="fm-eq-en" data-eid="'+eid+'" value="'+(nf.nfExcNum||'')+'"></div>';
+      row+='<div class="ff"><label class="fl">Data NF Excedente</label><input type="date" class="fm-eq-ed" data-eid="'+eid+'" value="'+(nf.nfExcData||'')+'"></div>';
       row+='</div>';
     }
     if(eqAd){
@@ -2255,6 +2640,7 @@ function bmToggleModel(bid,model){
 }
 function openBM(id){
   const b=bs.find(x=>x.id===id);if(!b)return;
+  snapFinBM(b); // ensure financial snapshot exists
   const c=cs.find(x=>x.id===b.contractId);if(!c)return;
   const[by,bm]=b.competencia.split('-').map(Number);
   const isEd=b.status===SMON;const isNF=b.status===SFAT;
@@ -2264,11 +2650,11 @@ function openBM(id){
   let eqIds=[...(b.equipIds||[])];
   // Filter by selected models (checkboxes)
   const selModels=window['bmModels_'+b.id]||new Set();
-  if(selModels.size>0)eqIds=eqIds.filter(eid=>{const a=ativos.find(x=>x.id===eid);return selModels.has(a?.equipamento||'');});
+  if(selModels.size>0)eqIds=eqIds.filter(eid=>{const a=_ativoIdx.get(eid);return selModels.has(a?.equipamento||'');});
   if(bmOrd==='az')eqIds.sort((x,y)=>(ativos.find(a=>a.id===x)?.ativo||'').localeCompare(ativos.find(a=>a.id===y)?.ativo||'','pt-BR'));
   if(bmOrd==='za')eqIds.sort((x,y)=>(ativos.find(a=>a.id===y)?.ativo||'').localeCompare(ativos.find(a=>a.id===x)?.ativo||'','pt-BR'));
   const eBlocks=eqIds.map(eid=>{
-    const a=ativos.find(x=>x.id===eid);if(!a)return'';
+    const a=_ativoIdx.get(eid);if(!a)return'';
     const medRaw=b.medicao?.[eid]||{};
     const fin=gEF(a);
     // Always recalculate preFillDates with current dataMob/dataDesmob
@@ -2306,7 +2692,7 @@ function openBM(id){
         <div style="display:flex;gap:5px;align-items:center">
           ${isFR?'<span class="badge bg">Fr. reduzida</span>':''}
           ${(med.descOp||0)>0?`<span class="badge ba" title="Desc. operacional: ${f(med.descOp)}"><i class="ti ti-tool" style="font-size:9px"></i> Desc. op: ${f(med.descOp)}</span>`:''}
-          ${(med.descCom||0)>0?`<span class="badge ba" title="Desc. comercial: ${f(med.descCom)}"><i class="ti ti-building-store" style="font-size:9px"></i> Desc. com: ${f(med.descCom)}</span>`:''}
+          ${(med.descCom||0)>0?`<span class="badge ba" title="Desc. comercial: ${f(med.descCom)}"><i class="ti ti-building-store" style="font-size:9px"></i> Desc. com: ${f(med.descCom)}</span>`:''}${(med.contestacao||0)>0?`<span class="badge" style="background:rgba(224,82,82,0.1);color:var(--red);border:1px solid rgba(224,82,82,0.3);font-size:9px" title="Em contestação: ${f(med.contestacao)}"><i class="ti ti-alert-triangle" style="font-size:9px"></i> Contesta: ${f(med.contestacao)}</span>`:''}
           ${isEd?`<button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue);padding:2px 8px;font-size:10px" onclick="removerEqBM('${b.id}','${eid}')" title="Criar BM separado para este equipamento"><i class="ti ti-scissors"></i> Desmembrar</button>`:''}
         </div>
       </div>
@@ -2357,6 +2743,11 @@ function openBM(id){
             <div class="ff"><label class="fl">Valor adicional (R$)</label><input type="number" value="${med.valorAdicional||''}" placeholder="0" oninput="uMFN('${b.id}','${eid}','valorAdicional',this.value)"></div>
             <div class="ff"><label class="fl">Justificativa</label><textarea placeholder="Descreva o valor adicional..." oninput="uMF('${b.id}','${eid}','obsAdicional',this.value)">${med.obsAdicional||''}</textarea></div>
           </div>
+          <div class="fst" style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;color:var(--red)"><i class="ti ti-alert-triangle" style="font-size:11px;margin-right:4px"></i>Valor em contestação</div>
+          <div class="g2">
+            <div class="ff"><label class="fl">Valor em contestação (R$)</label><input type="number" value="\${med.contestacao||''}" placeholder="0" oninput="uMFN('\${b.id}','\${eid}','contestacao',this.value)"></div>
+            <div class="ff"><label class="fl">Justificativa contestação</label><textarea placeholder="Descreva o motivo da contestação..." oninput="uMF('\${b.id}','\${eid}','justContest',this.value)">${med.justContest||''}</textarea></div>
+          </div>
         </div>
       </div>
     </div>`;
@@ -2377,7 +2768,7 @@ function openBM(id){
     <div class="mbd">
       <div class="fst">${isEd?'Medição por equipamento — editável':'Medição por equipamento'}</div>
       ${(()=>{
-        const modelos=[...new Set((b.equipIds||[]).map(eid=>ativos.find(x=>x.id===eid)?.equipamento||'').filter(Boolean))].sort();
+        const modelos=[...new Set((b.equipIds||[]).map(eid=>_ativoIdx.get(eid)?.equipamento||'').filter(Boolean))].sort();
         const selModels=window['bmModels_'+b.id]||new Set();
         const modelFilter=modelos.length<2?'':
           '<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Filtrar por modelo</div>'
@@ -2562,7 +2953,7 @@ function autoSaveBM(bmId){
 // ── UPDATE PER-EQUIP CALC BOX when prop changes ──
 function updCalcBox(bmId,eid){
   const b=bs.find(x=>x.id===bmId);const c=cs.find(x=>x.id===b.contractId);
-  const a=ativos.find(x=>x.id===eid);if(!a||!c)return;
+  const a=_ativoIdx.get(eid);if(!a||!c)return;
   const el=document.getElementById('calc-'+eid);if(!el)return;
   const med=b.medicao?.[eid]||{};const fin=gEF(a);
   const[,bm]=b.competencia.split('-').map(Number);
@@ -2594,7 +2985,14 @@ function mvS(bmId,stage){closeMV();closeBM(true);hSC(bmId,stage);}
 // ═══════════════ ATIVO MODAL ═══════════════
 function openEM(ativId){
   const a=ativId?ativos.find(x=>x.id===ativId):null;
+  // fin for non-financial fields only (faixas, mesesFR etc)
+  // Form fields use raw a values so cleared data stays cleared
   const fin=a?gEF(a):{faixas:[{limite:'',preco:''}],mesesFR:[],franquiaReduzida:false};
+  const rawMens=a?( a.mensalidade||''):'';
+  const rawFq=a?(a.franquia||''):'';
+  const rawHc=a?(a.horaContratual||''):'';
+  const rawDm=a?(a.dataMob||''):'';
+  const rawDd=a?(a.dataDesmob||''):'';
   const selM=fin.mesesFR||[];
   const cOpts=cs.map(c=>`<option value="${c.id}" ${a?.contractId===c.id?'selected':''}>${c.nomeContrato}</option>`).join('');
   const html=`<div class="modal mlg" onclick="event.stopPropagation()">
@@ -2620,9 +3018,9 @@ function openEM(ativId){
       <div class="fs"><div class="fst">Condições financeiras</div>
         <div class="g3">
           <div class="ff"><label class="fl">SLA</label><input type="text" id="fe-sl" value="${fin.sla||''}" placeholder="Ex: 4h"></div>
-          <div class="ff"><label class="fl">Mensalidade (R$)</label><input type="number" id="fe-mn" value="${fin.mensalidade||''}"></div>
-          <div class="ff"><label class="fl">Franquia (h/mês) — 0 = livre</label><input type="number" id="fe-fq" value="${fin.franquia||''}" placeholder="0 = franquia livre"></div>
-          <div class="ff"><label class="fl">Hora contratual (R$)</label><input type="number" id="fe-hc" value="${fin.horaContratual||''}"></div>
+          <div class="ff"><label class="fl">Mensalidade (R$)</label><input type="number" id="fe-mn" value="${rawMens}"></div>
+          <div class="ff"><label class="fl">Franquia (h/mês) — 0 = livre</label><input type="number" id="fe-fq" value="${rawFq}" placeholder="0 = franquia livre"></div>
+          <div class="ff"><label class="fl">Hora contratual (R$)</label><input type="number" id="fe-hc" value="${rawHc}"></div>
           <div class="ff"><label class="fl">M+1 fixo neste ativo</label><select id="fe-m1"><option value="nao" ${!fin.m1Fixo?'selected':''}>Não</option><option value="sim" ${fin.m1Fixo?'selected':''}>Sim</option></select></div>
         </div>
         <div class="fst" style="margin-top:12px">Faixas de hora excedente</div>
@@ -2690,11 +3088,54 @@ async function svEM(ativId){
     tipoExc:document.getElementById('fe-te').value||'mês a mês',
     ultCobrExc:document.getElementById('fe-uc').value||''
   };
-  if(ativId){const idx=ativos.findIndex(x=>x.id===ativId);if(idx>=0)ativos[idx]={...ativos[idx],...data};else ativos.push(data);}
-  else ativos.push(data);
-  await sAt(data);
+  let finalData;
+  if(ativId){
+    const idx=ativos.findIndex(x=>x.id===ativId);
+    if(idx>=0){
+      const old=ativos[idx];
+      // Snapshot on status change OR contract change
+      const statusChanged=old.status!==data.status;
+      const contractChanged=(old.contractId||null)!==(data.contractId||null);
+      if(statusChanged||contractChanged){
+        let tipo='alteração';
+        let obs='';
+        if(statusChanged&&data.status==='disponível'){
+          tipo='desvínculo';
+          obs=`Desmobilizado de ${cs.find(x=>x.id===old.contractId)?.nomeContrato||old.contractId||'—'}. Período: ${old.dataMob?fd(old.dataMob):'?'} → ${old.dataDesmob?fd(old.dataDesmob):'?'}. Mensalidade: ${f(old.mensalidade||0)}`;
+        } else if(statusChanged&&data.status==='locado'){
+          tipo='mobilização';
+          obs=`Mobilizado para ${cs.find(x=>x.id===data.contractId)?.nomeContrato||data.contractId||'—'}. Início: ${data.dataMob?fd(data.dataMob):'?'}`;
+        } else if(contractChanged&&!data.contractId&&old.contractId){
+          tipo='desvínculo';
+          obs=`Contrato removido: ${cs.find(x=>x.id===old.contractId)?.nomeContrato||old.contractId}. Período: ${old.dataMob?fd(old.dataMob):'?'} → ${old.dataDesmob?fd(old.dataDesmob):'?'}. Mensalidade: ${f(old.mensalidade||0)}`;
+        } else if(contractChanged&&data.contractId&&old.contractId){
+          tipo='transferência';
+          obs=`Transferido de ${cs.find(x=>x.id===old.contractId)?.nomeContrato||'—'} para ${cs.find(x=>x.id===data.contractId)?.nomeContrato||'—'}`;
+        } else {
+          obs=`Status: ${old.status} → ${data.status}`;
+        }
+        // Always snapshot the OLD state (before changes)
+        snapAtivo(old,tipo,obs);
+      }
+      // Merge preserving historico and any fields not in the form
+      finalData={...old,...data,historico:old.historico||[]};
+      ativos[idx]=finalData;
+    } else {
+      finalData={...data,historico:[]};
+      ativos.push(finalData);
+    }
+  } else {
+    finalData={...data,historico:[]};
+    ativos.push(finalData);
+  }
+  // Inherit m1Fixo from contract
+  const _svnc=cs.find(x=>x.id===finalData.contractId);
+  if(_svnc)finalData.m1Fixo=!!_svnc.m1Fixo;
+  else finalData.m1Fixo=false;
+  _bmsLoaded=false;
+  await sAt(finalData); // save merged object WITH historico
   closeEM();
-  await autoCreateBMs(mo.kanban.y,mo.kanban.m);
+  _buildIdx();
   rAll();
 }
 
@@ -2761,6 +3202,7 @@ function cDM(aid){
 async function confDM(aid){
   const d=document.getElementById('dd-d')?.value;const h=document.getElementById('dd-h')?.value;
   const a=ativos.find(x=>x.id===aid);
+  snapAtivo(a,'desmobilização',`Horímetro final: ${parseFloat(h||0)}h`);
   a.status='desmobilizado';a.dataDesmob=d;a.horimetroFinal=parseFloat(h||0);
   await sAt(a);closeDM();rAll();
 }
@@ -3020,7 +3462,7 @@ function mostrarSemBM(){
   const lista=window._semBM||[];
   if(!lista.length){alert('Todos os contratos têm BM em junho.');return;}
   const linhas=lista.map(c=>{
-    const eqs=ativos.filter(a=>a.contractId===c.id);
+    const eqs=(_ativosByC.get(c.id)||[]);
     return c.nomeContrato+' ('+c.nomeCliente+') — '+eqs.length+' ativo(s): '+eqs.map(a=>a.ativo+' ['+a.status+']').join(', ');
   }).join('\n\n');
   alert(lista.length+' contrato(s) sem BM em Junho/2026:\n\n'+linhas+'\n\nDica: vá ao ADM e clique em "Zerar BMs e recriar para Junho".');
@@ -3239,6 +3681,7 @@ function checkSession(){
 }
 
 // ═══════════════ APPROVER VIEW ═══════════════
+
 function renderApproverView(){
   if(!_user||(_user.role!=='op'&&_user.role!=='com'))return;
   const stage=_user.role==='op'?SDESC_OP:SDESC_COM;
@@ -3258,7 +3701,7 @@ function renderApproverView(){
     const{tM,tE,dC,dO,tot}=gBMS(b);
     const descValor=_user.role==='op'?dO:dC;
     const eqRows=(b.equipIds||[]).map(eid=>{
-      const a=ativos.find(x=>x.id===eid);const med=b.medicao?.[eid]||{};
+      const a=_ativoIdx.get(eid);const med=b.medicao?.[eid]||{};
       const dv=_user.role==='op'?(med.descOp||0):(med.descCom||0);
       const obs=_user.role==='op'?(med.obsDescOp||''):(med.obsDescCom||'');
       const anexo=_user.role==='op'?(med.anexoDescOp||null):(med.anexoDescCom||null);
@@ -3267,9 +3710,15 @@ function renderApproverView(){
         `<img src="${anexo.data}" style="max-width:180px;max-height:120px;border-radius:4px;border:1px solid var(--border);cursor:pointer" onclick="verAnexoInline('${anexo.data}','${anexo.type}')" title="Clique para abrir" style="cursor:pointer">`
         :`<a href="${anexo.data}" download="${anexo.name}" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;background:var(--bg2);border:1px solid var(--border);font-size:11px;color:var(--text2);text-decoration:none"><i class="ti ti-file-download"></i> ${anexo.name}</a>`
       }</div>`:'';
+      const mens=med._fin?.mensalidade||gEF(a).mensalidade||0;
+      const propPct=med.prop!=null?Math.round(med.prop*100)+'%':'100%';
+      const prevMensAtivo=mens*(med.prop??1);
+      const periodoAtivo=med.dataIni&&med.dataFim?`${fd(med.dataIni)} → ${fd(med.dataFim)}`:'—';
       return`<tr style="font-size:11px;vertical-align:top">
         <td style="padding:8px;font-weight:700;color:var(--text);white-space:nowrap">${a?.ativo||eid}</td>
         <td style="padding:8px;color:var(--text2);white-space:nowrap">${a?.equipamento||'-'}</td>
+        <td style="padding:8px;color:var(--text3);white-space:nowrap;font-size:10px">${periodoAtivo}<br><span style="color:var(--text2)">${propPct}</span></td>
+        <td style="padding:8px;font-weight:600;color:var(--text2);white-space:nowrap">${f(prevMensAtivo)}</td>
         <td style="padding:8px;font-weight:700;color:#F37021;white-space:nowrap">${f(dv)}</td>
         <td style="padding:8px;color:var(--text2);white-space:normal;min-width:200px;max-width:350px;line-height:1.5">${obs||'—'}${anexoHTML}</td>
       </tr>`;
@@ -3280,6 +3729,7 @@ function renderApproverView(){
         <div>
           <div class="cbn">${c?.nomeContrato||'-'}</div>
           <div class="cbm">${c?.nomeCliente||'-'} · Competência: ${yml(by,bm)}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">${(()=>{const meds=Object.values(b.medicao||{});const datas=meds.filter(m=>m.dataIni&&m.dataFim);if(!datas.length)return'';const ini=datas.reduce((a,m)=>m.dataIni<a?m.dataIni:a,datas[0].dataIni);const fim=datas.reduce((a,m)=>m.dataFim>a?m.dataFim:a,datas[0].dataFim);return'Período de medição: '+fd(ini)+' → '+fd(fim);})()}</div>
         </div>
         <div style="display:flex;gap:10px;align-items:center">
           <div style="text-align:right">
@@ -3293,11 +3743,13 @@ function renderApproverView(){
         </div>
       </div>
       <div style="padding:14px">
-        <div class="tw" style="margin-bottom:12px">
-          <table style="width:100%;border-collapse:collapse">
+        <div class="tw" style="margin-bottom:12px;overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;min-width:700px">
             <thead><tr>
               <th style="background:var(--bg2);padding:6px 8px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--text3);border-bottom:1px solid var(--border)">Ativo</th>
               <th style="background:var(--bg2);padding:6px 8px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--text3);border-bottom:1px solid var(--border)">Equipamento</th>
+              <th style="background:var(--bg2);padding:6px 8px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--text3);border-bottom:1px solid var(--border)">Período / Prop.</th>
+              <th style="background:var(--bg2);padding:6px 8px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--text3);border-bottom:1px solid var(--border)">Mens. prevista</th>
               <th style="background:var(--bg2);padding:6px 8px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--text3);border-bottom:1px solid var(--border)">Desconto ${tipoLabel}</th>
               <th style="background:var(--bg2);padding:6px 8px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--text3);border-bottom:1px solid var(--border)">Justificativa + Anexo</th>
             </tr></thead>
@@ -3490,7 +3942,7 @@ function gerarPDFBM(bmId){
   const{tM,tE,dC,dO,tot}=gBMS(b);
   const hoje=new Date().toLocaleDateString('pt-BR');
   const equipsRows=(b.equipIds||[]).map(eid=>{
-    const a=ativos.find(x=>x.id===eid);if(!a)return'';
+    const a=_ativoIdx.get(eid);if(!a)return'';
     const med=b.medicao?.[eid]||{};const fin=gEF(a);
     const[,mbm]=b.competencia.split('-').map(Number);
     const isFR=fin.franquiaReduzida&&fin.mesesFR.includes(mbm-1);
@@ -3704,6 +4156,67 @@ async function criarBMManual(){
   rK();
 }
 
+
+// ═══════════════ HISTÓRICO DE MOVIMENTAÇÃO DO ATIVO ═══════════════
+function snapAtivo(a, tipo, obs=''){
+  const c=cs.find(x=>x.id===a.contractId);
+  const snap={
+    ts:new Date().toISOString(),
+    tipo, // 'desmobilização' | 'desvínculo' | 'mobilização' | 'alteração'
+    obs,
+    usuario:_user?.nome||'Sistema',
+    // Foto do estado financeiro no momento
+    contractId:a.contractId||null,
+    nomeContrato:c?.nomeContrato||null,
+    nomeCliente:c?.nomeCliente||null,
+    codCliente:c?.codCliente||null,
+    status:a.status,
+    mensalidade:a.mensalidade||0,
+    franquia:a.franquia||0,
+    horaContratual:a.horaContratual||0,
+    sla:a.sla||'',
+    dataMob:a.dataMob||null,
+    dataDesmob:a.dataDesmob||null,
+    horimetroMob:a.horimetroMob||null,
+    horimetroFinal:a.horimetroFinal||null,
+    perExc:a.perExc||'',
+    tipoExc:a.tipoExc||'',
+  };
+  if(!a.historico)a.historico=[];
+  a.historico.push(snap);
+  return snap;
+}
+
+function openHistoricoAtivo(aid){
+  const a=ativos.find(x=>x.id===aid);if(!a)return;
+  const hist=(a.historico||[]).slice().reverse();
+  const icons={desmobilização:'ti-logout',desvínculo:'ti-unlink',mobilização:'ti-login',alteração:'ti-pencil'};
+  const rows=hist.length?hist.map(h=>`
+    <div style="border-left:2px solid var(--border);padding:8px 12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-weight:700;font-size:12px;color:var(--text);text-transform:capitalize">
+          <i class="ti ${icons[h.tipo]||'ti-history'}" style="margin-right:4px"></i>${h.tipo}
+        </span>
+        <span style="font-size:10px;color:var(--text3)">${fd(h.ts.slice(0,10))} · ${h.usuario}</span>
+      </div>
+      ${h.nomeContrato?`<div style="font-size:11px;color:var(--text2);margin-bottom:3px"><b>${h.nomeContrato}</b> — ${h.nomeCliente||''}</div>`:''}
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;font-size:10px;color:var(--text3)">
+        ${h.mensalidade?`<span>Mens: <b style="color:var(--text)">${f(h.mensalidade)}</b></span>`:''}
+        ${h.dataMob?`<span>Mob: <b style="color:var(--text)">${fd(h.dataMob)}</b></span>`:''}
+        ${h.dataDesmob?`<span>Desmob: <b style="color:var(--text)">${fd(h.dataDesmob)}</b></span>`:''}
+        ${h.horimetroMob?`<span>Hm ini: <b style="color:var(--text)">${h.horimetroMob}h</b></span>`:''}
+        ${h.horimetroFinal?`<span>Hm fin: <b style="color:var(--text)">${h.horimetroFinal}h</b></span>`:''}
+        ${h.sla?`<span>SLA: <b style="color:var(--text)">${h.sla}</b></span>`:''}
+      </div>
+      ${h.obs?`<div style="font-size:10px;color:var(--text2);margin-top:3px;font-style:italic">${h.obs}</div>`:''}
+    </div>`).join('')
+    :'<div style="color:var(--text3);font-size:12px;text-align:center;padding:20px">Nenhuma movimentação registrada</div>';
+  const html=`<div class="modal" onclick="event.stopPropagation()" style="max-width:560px">
+    <div class="mh2"><span class="mht">Histórico — ${a.ativo}</span><button class="bti" onclick="closeMV()"><i class="ti ti-x"></i></button></div>
+    <div class="mbd" style="max-height:70vh;overflow-y:auto">${rows}</div>
+  </div>`;
+  const el=document.getElementById('mvm');el.innerHTML=html;el.classList.remove('dn');el.onclick=()=>closeMV();
+}
 // ═══════════════ MIGRATION / UTILS ═══════════════
 async function deletarBMsMaio(){
   const mayo=bs.filter(b=>b.competencia==='2026-05');
@@ -3874,6 +4387,147 @@ function popCF(){
     kpf.innerHTML='<option value="">Todos os períodos</option>'+
       [...periods].sort().map(p=>{const[pi,pf]=p.split('-');return`<option value="${p}" ${cur===p?'selected':''}>Dia ${pi} ao ${pf}</option>`;}).join('');
   }
+}
+
+
+
+
+// ═══════════════ FLEET LOCADO MÊS ═══════════════
+function rFleet(){
+  const el=document.getElementById('fleet-content');if(!el)return;
+  const today=new Date();
+  const maxYM=ym(today.getFullYear(),today.getMonth()+1);
+  const months=[];let ty=2026,tm=6;
+  while(ym(ty,tm)<=maxYM){months.push({y:ty,m:tm});const r=aM(ty,tm,1);ty=r.y;tm=r.m;}
+
+  // ── Build all billing periods per ativo (deduped by mob+desmob+contract) ──
+  // A period = {dataMob, dataDesmob, mensalidade, contractId}
+  // dataDesmob=null only valid for CURRENT active ativo (status=locado/similar)
+
+  // All ativos that have at least one billable period
+  const allPeriods=[];
+  ativos.forEach(a=>{
+    getAtivoPeriods(a).forEach(p=>allPeriods.push({a,p}));
+  });
+
+  const cards=months.map(({y,m})=>{
+    const d1=new Date(y,m-1,1);
+    const dEnd=new Date(y,m-1,30);
+
+    // Active periods in this month
+    const active=allPeriods.filter(({p})=>{
+      const mob=new Date(xlDate(String(p.dataMob)));
+      if(isNaN(mob.getTime())||mob>dEnd)return false;
+      if(p.dataDesmob){const des=new Date(xlDate(String(p.dataDesmob)));if(!isNaN(des.getTime())&&des<d1)return false;}
+      return true;
+    });
+
+    // Fleet dia 1: active on day 1 (mob <= d1, no desmob before d1)
+    const fleet1=active.filter(({p})=>{
+      const mob=new Date(xlDate(String(p.dataMob)));
+      if(mob>d1)return false;
+      if(p.dataDesmob){const des=new Date(xlDate(String(p.dataDesmob)));if(!isNaN(des.getTime())&&des<d1)return false;}
+      return true;
+    });
+    const vFleet1=fleet1.reduce((s,{p})=>s+p.mensalidade,0);
+
+    // Mobilizations: mob day > 1 within month
+    const mobs=active.filter(({p})=>{
+      const mob=new Date(xlDate(String(p.dataMob)));
+      return mob.getFullYear()===y&&mob.getMonth()===m-1&&mob.getDate()>1;
+    });
+    const vMobs=mobs.reduce((s,{p})=>{
+      const mob=new Date(xlDate(String(p.dataMob)));
+      return s+(p.mensalidade/30*Math.max(0,30-mob.getDate()));
+    },0);
+
+    // Demobilizations: desmob within month
+    const desm=active.filter(({p})=>{
+      if(!p.dataDesmob)return false;
+      const des=new Date(xlDate(String(p.dataDesmob)));
+      return des.getFullYear()===y&&des.getMonth()===m-1;
+    });
+    const vDesm=desm.reduce((s,{p})=>{
+      const des=new Date(xlDate(String(p.dataDesmob)));
+      return s+(p.mensalidade/30*Math.max(0,30-des.getDate()));
+    },0);
+
+    // Table: one row per active period, deduped
+    // Sort active by nomeContrato (operação) then ativo name
+    const activeSorted=[...active].sort(({a:a1,p:p1},{a:a2,p:p2})=>{
+      const c1=cs.find(x=>x.id===p1.contractId)?.nomeContrato||'';
+      const c2=cs.find(x=>x.id===p2.contractId)?.nomeContrato||'';
+      return c1.localeCompare(c2,'pt-BR')||a1.ativo.localeCompare(a2.ativo,'pt-BR');
+    });
+    const tableRows=activeSorted.filter(({p})=>p.contractId).map(({a,p})=>{
+      const mob=new Date(xlDate(String(p.dataMob)));
+      const des=p.dataDesmob?new Date(xlDate(String(p.dataDesmob))):null;
+      const effStart=mob>d1?mob:d1;
+      const effEnd=(des&&des<dEnd)?des:dEnd;
+      const dias=Math.max(0,Math.round((effEnd-effStart)/86400000)+1);
+      const prop=Math.round(dias/30*1000)/1000;
+      const valProp=Math.round(p.mensalidade*prop*100)/100;
+      const isMob=mob.getFullYear()===y&&mob.getMonth()===m-1&&mob.getDate()>1;
+      const isDes=des&&des.getFullYear()===y&&des.getMonth()===m-1;
+      const c=cs.find(x=>x.id===p.contractId);
+      return`<tr>
+        <td style="font-weight:600;color:var(--text)">${a.ativo}</td>
+        <td style="color:var(--text2);font-size:11px">${a.equipamento||'—'}</td>
+        <td style="font-size:11px">${c?.nomeContrato||'—'}</td>
+        <td style="text-align:center">${isMob?`<span class="badge bg" style="font-size:9px">Mob ${mob.getDate()}/${m}</span>`:isDes?`<span class="badge br" style="font-size:9px">Desmob ${des.getDate()}/${m}</span>`:''}</td>
+        <td style="text-align:right">${f(p.mensalidade)}</td>
+        <td style="text-align:center;color:var(--text2)">${Math.round(prop*100)}%</td>
+        <td style="text-align:right;font-weight:700;color:${prop<1?'#F37021':'var(--text)'}">${f(valProp)}</td>
+      </tr>`;
+    }).join('');
+
+    const totMens=activeSorted.filter(({p})=>p.contractId).reduce((s,{p})=>s+p.mensalidade,0);
+    const totProp=activeSorted.filter(({p})=>p.contractId).reduce((s,{a:_a,p})=>{
+      const mob=new Date(xlDate(String(p.dataMob)));
+      const des=p.dataDesmob?new Date(xlDate(String(p.dataDesmob))):null;
+      const effStart=mob>d1?mob:d1,effEnd=(des&&des<dEnd)?des:dEnd;
+      const dias=Math.max(0,Math.round((effEnd-effStart)/86400000)+1);
+      return s+p.mensalidade*(dias/30);
+    },0);
+
+    const nAtivos=activeSorted.filter(({p})=>p.contractId).length;
+    return{y,m,fleet1,vFleet1,mobs,vMobs,desm,vDesm,vTotal:vFleet1+vMobs-vDesm,tableRows,totMens,totProp,nAtivos};
+  });
+
+  el.innerHTML=cards.map(card=>{
+    const{y,m,fleet1,vFleet1,mobs,vMobs,desm,vDesm,vTotal,tableRows,totMens,totProp,nAtivos}=card;
+    return`<div style="border:1px solid var(--border);border-radius:var(--r);margin-bottom:24px;overflow:hidden">
+      <div style="background:var(--nav);color:#fff;padding:10px 16px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700">${MS[m-1].toUpperCase()} ${y}</span>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:600;color:#F37021">${f(vTotal)}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-bottom:1px solid var(--border)">
+        <div style="padding:14px 16px;border-right:1px solid var(--border)">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--text3);margin-bottom:4px">Fleet dia 01</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;color:#004042">${f(vFleet1)}</div>
+          <div style="font-size:11px;color:var(--text3)">${fleet1.length} equip.</div>
+        </div>
+        <div style="padding:14px 16px;border-right:1px solid var(--border)">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--text3);margin-bottom:4px">Mobilizações</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;color:#2A8C6E">+${f(vMobs)}</div>
+          <div style="font-size:11px;color:var(--text3)">${mobs.length} equip.</div>
+        </div>
+        <div style="padding:14px 16px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--text3);margin-bottom:4px">Desmobilizações</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;color:var(--red)">−${f(vDesm)}</div>
+          <div style="font-size:11px;color:var(--text3)">${desm.length} equip.</div>
+        </div>
+      </div>
+      ${nAtivos?`<div class="tw mh" style="margin:0"><table>
+        <thead><tr><th>Ativo</th><th>Equipamento</th><th>Contrato</th><th style="text-align:center">Movim.</th><th style="text-align:right">Mensalidade</th><th style="text-align:center">Prop.</th><th style="text-align:right">Valor proporcional</th></tr></thead>
+        <tbody>${tableRows}</tbody>
+        <tfoot><tr style="border-top:2px solid var(--border);background:var(--bg2)">
+          <td colspan="4" style="font-weight:700;padding:8px">Total — ${nAtivos} períodos</td>
+          <td style="text-align:right;font-weight:700">${f(totMens)}</td><td></td>
+          <td style="text-align:right;font-weight:700;color:#F37021">${f(totProp)}</td>
+        </tfoot></table></div>`:'<div style="padding:16px;color:var(--text3);font-size:12px">Nenhum ativo neste mês</div>'}
+    </div>`;
+  }).join('');
 }
 
 // ═══════════════ INIT ═══════════════
