@@ -1392,9 +1392,19 @@ async function autoCreateBMs(year,month){
     function qualifica(a){
       if(a.status==='venda')return false;
       // Ativos locados normalmente
-      if(a.status!=='disponível')return a.contractId===c.id;
+      if(a.status!=='disponível'){
+        if(a.contractId===c.id)return true; // currently in this contract
+        // Locado elsewhere: check historico for THIS contract in billing period
+        return (a.historico||[]).some(h=>{
+          if(h.contractId!==c.id||!h.dataDesmob)return false;
+          const des=new Date(xlDate(String(h.dataDesmob)));
+          if(isNaN(des.getTime())||des<wPS)return false;
+          const mob=h.dataMob?new Date(xlDate(String(h.dataMob))):null;
+          return !mob||mob<=wPE;
+        });
+      }
       // Disponível: verifica historico
-      if(a.contractId!==c.id&&!( (a.historico||[]).some(h=>h.contractId===c.id)))return false;
+      if(a.contractId!==c.id&&!((a.historico||[]).some(h=>h.contractId===c.id)))return false;
       return (a.historico||[]).some(h=>{
         if(!h.dataDesmob)return false;
         const des=new Date(xlDate(String(h.dataDesmob)));
@@ -1414,10 +1424,12 @@ async function autoCreateBMs(year,month){
     // ── Calcula med para um ativo ──
     function calcMed(a){
       // Busca entrada do historico com dataMob<dataDesmob válida
+      // Use historico entry for THIS contract (c.id) to avoid contamination from other contracts
       const h=(a.historico||[]).slice().reverse()
-        .find(hh=>hh.dataDesmob&&hh.dataMob&&String(hh.dataMob)<String(hh.dataDesmob));
-      const dm=h?.dataMob||a.dataMob||null;
-      const dd=h?.dataDesmob||a.dataDesmob||null;
+        .find(hh=>hh.contractId===c.id&&hh.dataDesmob&&hh.dataMob&&String(hh.dataMob)<String(hh.dataDesmob));
+      // For current contract: if no closed historico, use current ativo dates
+      const dm=h?.dataMob||(a.contractId===c.id?a.dataMob:null)||null;
+      const dd=h?.dataDesmob||(a.contractId===c.id?a.dataDesmob:null)||null;
       const mens=(h?.mensalidade>0)?h.mensalidade:getMens(a);
       if(!dm)return null;
       // Datas efetivas: clampadas ao período de trabalho
@@ -1447,7 +1459,9 @@ async function autoCreateBMs(year,month){
       // Early exit: all locado deveEstar already in BM AND no stale disponível to remove
       const alreadyOk=deveEstar.every(a=>(bm.equipIds||[]).includes(a.id)&&a.status!=='disponível');
       const hasStale=(bm.equipIds||[]).some(eid=>{const a=_ativoIdx.get(eid);return a&&a.status==='disponível'&&!deveIds.has(eid);});
-      if(alreadyOk&&!hasStale)continue;
+      // Force recalc when any ativo is from another contract (dates may be contaminated)
+      const hasCrossContract=deveEstar.some(a=>a.contractId!==c.id);
+      if(alreadyOk&&!hasStale&&!hasCrossContract)continue;
       // Remove ativos que não qualificam mais (ex: desmob antes do período)
       const idsParaRemover=(bm.equipIds||[]).filter(eid=>{
         const a=_ativoIdx.get(eid);
@@ -2216,9 +2230,11 @@ function bCR(sYM){
       if(a.status==='venda')return; // disponível allowed — may have historico billing
       // Use historico data if ativo contractId was cleared
       // Use getAtivoPeriods for cleared ativos (same logic as Fleet)
-      const _ap=(!a.contractId)?getAtivoPeriods(a).find(p=>p.contractId===c.id):null;
-      const aForCalc=_ap?{...a,contractId:c.id,mensalidade:_ap.mensalidade,
-        dataMob:_ap.dataMob,dataDesmob:_ap.dataDesmob}:
+      // Ativo moved to another contract: get dates from historico for THIS contract (avoid contamination)
+      const _histForC=a.contractId!==c.id?(a.historico||[]).slice().reverse().find(h=>h.contractId===c.id&&h.dataMob):null;
+      const _ap=(!a.contractId&&!_histForC)?getAtivoPeriods(a).find(p=>p.contractId===c.id):null;
+      const aForCalc=_histForC?{...a,contractId:c.id,dataMob:_histForC.dataMob,dataDesmob:_histForC.dataDesmob,mensalidade:_histForC.mensalidade||getMens(a)||a.mensalidade}:
+        _ap?{...a,contractId:c.id,mensalidade:_ap.mensalidade,dataMob:_ap.dataMob,dataDesmob:_ap.dataDesmob}:
         (()=>{const{dataMob:aDm,dataDesmob:aDd}=getAtivoDates(a);
           return{...a,contractId:a.contractId||c.id,mensalidade:getMens(a)||a.mensalidade,
           dataMob:aDm,dataDesmob:aDd};})();
@@ -2657,8 +2673,10 @@ function openBM(id){
     const a=_ativoIdx.get(eid);if(!a)return'';
     const medRaw=b.medicao?.[eid]||{};
     const fin=gEF(a);
-    // Always recalculate preFillDates with current dataMob/dataDesmob
-    const pf2=preFillDates(a,c,b.competencia);
+    // If ativo moved to another contract, use historico dates for THIS contract
+    const _hfc=a.contractId!==c.id?(a.historico||[]).slice().reverse().find(h=>h.contractId===c.id&&h.dataMob):null;
+    const _aForK=_hfc?{...a,contractId:c.id,dataMob:_hfc.dataMob,dataDesmob:_hfc.dataDesmob,mensalidade:_hfc.mensalidade||a.mensalidade}:a;
+    const pf2=preFillDates(_aForK,c,b.competencia);
     const med={dataIni:pf2.dataIni,dataFim:pf2.dataFim,...medRaw};
     // Update if dates changed (dataMob/dataDesmob updated after BM was created)
     const storedIni=b.medicao?.[eid]?.dataIni;
